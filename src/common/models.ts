@@ -58,7 +58,7 @@ export class MarketTrade implements ITimestamped {
 }
 
 export enum GatewayType { MarketData, OrderEntry, Position }
-export enum Currency { USD, BTC, LTC, EUR, GBP, CNY , ETH , CAD }
+export enum Currency { USD, BTC, LTC, EUR, GBP, CNY , ETH }
 export enum ConnectivityStatus { Connected, Disconnected }
 export enum Exchange { Null, HitBtc, OkCoin, AtlasAts, BtcChina, Coinbase, Bitfinex }
 export enum Side { Bid, Ask, Unknown }
@@ -250,10 +250,7 @@ export class Trade implements ITimestamped {
                 public side: Side,
                 public value: number,
                 public liquidity: Liquidity,
-                public Kqty: number,
-                public Kprice: number,
-                public feeCharged: number,
-                public loadedFromDB: boolean) {}
+                public feeCharged: number) {}
 }
 
 export class CurrencyPosition {
@@ -272,7 +269,6 @@ export class PositionReport {
                 public baseHeldAmount: number,
                 public quoteHeldAmount: number,
                 public value: number,
-                public valueFiat: number,
                 public quoteValue: number,
                 public pair: CurrencyPair,
                 public exchange: Exchange,
@@ -335,14 +331,13 @@ export function currencyPairEqual(a: CurrencyPair, b: CurrencyPair): boolean {
     return a.base === b.base && a.quote === b.quote;
 }
 
-export enum QuotingMode { Top, Mid, Join, InverseJoin, InverseTop, PingPong, Boomerang, AK47 }
+export enum QuotingMode { Top, Mid, Join, InverseJoin, InverseTop, PingPong }
 export enum FairValueModel { BBO, wBBO }
 export enum AutoPositionMode { Off, EwmaBasic }
 
 export class QuotingParameters {
     constructor(public width: number,
-                public buySize: number,
-                public sellSize: number,
+                public size: number,
                 public mode: QuotingMode,
                 public fvModel: FairValueModel,
                 public targetBasePosition: number,
@@ -352,7 +347,6 @@ export class QuotingParameters {
                 public aggressivePositionRebalancing: boolean,
                 public tradesPerMinute: number,
                 public tradeRateSeconds: number,
-                public audio: boolean,
                 public longEwma: number,
                 public shortEwma: number,
                 public quotingEwma: number,
@@ -398,13 +392,5 @@ export class TargetBasePositionValue {
 }
 
 export class CancelAllOrdersRequest {
-    constructor() {}
-}
-
-export class CleanAllClosedOrdersRequest {
-    constructor() {}
-}
-
-export class CleanAllOrdersRequest {
     constructor() {}
 }

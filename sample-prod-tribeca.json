@@ -15,8 +15,8 @@
     "HitBtcSecret": "NULL",
     "HitBtcOrderDestination": "HitBtc",
     
-    "CoinbaseRestUrl": "https://api.gdax.com",
-    "CoinbaseWebsocketUrl": "wss://ws-feed.gdax.com",
+    "CoinbaseRestUrl": "https://api.exchange.coinbase.com",
+    "CoinbaseWebsocketUrl": "https://ws-feed-public.sandbox.exchange.coinbase.com",
     "CoinbasePassphrase": "NULL",
     "CoinbaseApiKey": "NULL",
     "CoinbaseSecret": "NULL",

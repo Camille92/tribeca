@@ -1,5 +1,5 @@
-Internet Systems Consortium (ISC) license
-=========================================
+Internet Systems Consortium license
+===================================
 
 Copyright (c) `2015`, `Michael Grosner`
 
