@@ -145,8 +145,8 @@ var TradesListController = ($scope : TradesScope, $log : ng.ILogService, subscri
 
     var updateQP = qp => {
       $scope.audio = qp.audio;
-      $scope.gridOptions.columnDefs[$scope.gridOptions.columnDefs.map(function (e) { return e.field; }).indexOf('Kqty')].visible = (qp.mode === Models.QuotingMode.Boomerang);
-      $scope.gridOptions.columnDefs[$scope.gridOptions.columnDefs.map(function (e) { return e.field; }).indexOf('Kprice')].visible = (qp.mode === Models.QuotingMode.Boomerang);
+      $scope.gridOptions.columnDefs[$scope.gridOptions.columnDefs.map(function (e) { return e.field; }).indexOf('Kqty')].visible = (qp.mode === Models.QuotingMode.Boomerang || qp.mode === Models.QuotingMode.AK47);
+      $scope.gridOptions.columnDefs[$scope.gridOptions.columnDefs.map(function (e) { return e.field; }).indexOf('Kprice')].visible = (qp.mode === Models.QuotingMode.Boomerang || qp.mode === Models.QuotingMode.AK47);
       $scope.gridApi.grid.refresh();
     };
 
@@ -158,10 +158,10 @@ var TradesListController = ($scope : TradesScope, $log : ng.ILogService, subscri
     $scope.$on('$destroy', () => {
         sub.disconnect();
         qpSub.disconnect();
-        $log.info("destroy trades list");
+        // $log.info("destroy trades list");
     });
 
-    $log.info("started trades list");
+    // $log.info("started trades list");
 };
 
 var tradeList = () : ng.IDirective => {

@@ -17,6 +17,7 @@ import Persister = require("./persister");
 import util = require("util");
 import Messages = require("./messages");
 import QuotingParameters = require("./quoting-parameters");
+import moment = require('moment');
 var Lynx = require('lynx');
 var metrics = new Lynx('localhost', 8125);
 
@@ -218,7 +219,7 @@ export class OrderBroker implements Interfaces.IOrderBroker {
             // race condition! i cannot cancel an order before I get the exchangeId (oid); register it for deletion on the ack
             if (typeof rpt.exchangeId === "undefined") {
                 this._cancelsWaitingForExchangeOrderId[rpt.orderId] = cancel;
-                this._log.info("Registered %s for late deletion", rpt.orderId);
+                // this._log.info("Registered %s for late deletion", rpt.orderId);
                 return;
             }
         }
@@ -233,6 +234,11 @@ export class OrderBroker implements Interfaces.IOrderBroker {
             time: sent.sentTime,
             computationalLatency: Utils.fastDiff(sent.sentTime, cancel.generatedTime)};
         this.onOrderUpdate(rpt);
+    };
+
+    private onTick = () => {
+      if (this._qlParamRepo.latest.mode === Models.QuotingMode.AK47)
+        this.cancelOpenOrders();
     };
 
     private _reTrade = (reTrades: Models.Trade[], trade: Models.Trade) => {
@@ -298,7 +304,7 @@ export class OrderBroker implements Interfaces.IOrderBroker {
             }
 
             if (typeof orderChain === "undefined") {
-                this._log.error("cannot find orderId from", osr);
+                // this._log.error("cannot find orderId from", osr);
                 return;
             }
 
@@ -345,7 +351,8 @@ export class OrderBroker implements Interfaces.IOrderBroker {
             osr.pendingCancel,
             osr.pendingReplace,
             osr.cancelRejected,
-            getOrFallback(osr.preferPostOnly, orig.preferPostOnly)
+            getOrFallback(osr.preferPostOnly, orig.preferPostOnly),
+            osr.done
         );
 
         this.addOrderStatusToMemory(o);
@@ -354,7 +361,7 @@ export class OrderBroker implements Interfaces.IOrderBroker {
         if (!this._oeGateway.cancelsByClientOrderId
                 && typeof o.exchangeId !== "undefined"
                 && o.orderId in this._cancelsWaitingForExchangeOrderId) {
-            this._log.info("Deleting %s late, oid: %s", o.exchangeId, o.orderId);
+            // this._log.info("Deleting %s late, oid: %s", o.exchangeId, o.orderId);
             var cancel = this._cancelsWaitingForExchangeOrderId[o.orderId];
             delete this._cancelsWaitingForExchangeOrderId[o.orderId];
             this.cancelOrder(cancel);
@@ -380,7 +387,7 @@ export class OrderBroker implements Interfaces.IOrderBroker {
             const trade = new Models.Trade(o.orderId+"."+o.version, o.time, o.exchange, o.pair,
                 o.lastPrice, o.lastQuantity, o.side, value, o.liquidity, 0, 0, feeCharged, false);
             this.Trade.trigger(trade);
-            if (this._qlParamRepo.latest.mode === Models.QuotingMode.Boomerang)
+            if (this._qlParamRepo.latest.mode === Models.QuotingMode.Boomerang || this._qlParamRepo.latest.mode === Models.QuotingMode.AK47)
               this._tradePersister.perfind(trade, trade.side, this._qlParamRepo.latest.width, trade.price).then(reTrades => { this._reTrade(reTrades, trade); });
             else {
               this._tradePublisher.publish(trade);
@@ -388,18 +395,23 @@ export class OrderBroker implements Interfaces.IOrderBroker {
               this._trades.push(trade);
             }
             metrics.gauge('tribeca.trade_'+(o.side === Models.Side.Bid ? 'bid' : 'ask'), o.lastPrice);
+
+            if (this._qlParamRepo.latest.mode === Models.QuotingMode.Boomerang || this._qlParamRepo.latest.mode === Models.QuotingMode.AK47)
+              this.cancelOpenOrders();
+        }
+
+        if (o.done===true) {
+          delete this._orderCache.allOrders[o.orderId];
+          delete this._orderCache.exchIdsToClientIds[o.exchangeId];
         }
     };
 
     private addOrderStatusToMemory = (osr : Models.OrderStatusReport) => {
         this._orderCache.exchIdsToClientIds[osr.exchangeId] = osr.orderId;
 
-        if (!(osr.orderId in this._orderCache.allOrders))
-            this._orderCache.allOrders[osr.orderId] = [osr];
-        else
-            this._orderCache.allOrders[osr.orderId].push(osr);
+        this._orderCache.allOrders[osr.orderId] = [osr];
 
-        this._orderCache.allOrdersFlat.push(osr);
+        // this._orderCache.allOrdersFlat.push(osr);
     };
 
     constructor(private _timeProvider: Utils.ITimeProvider,
@@ -419,11 +431,15 @@ export class OrderBroker implements Interfaces.IOrderBroker {
                 private _orderCache : OrderStateCache,
                 initOrders : Models.OrderStatusReport[],
                 initTrades : Models.Trade[]) {
+        if (this._qlParamRepo.latest.mode === Models.QuotingMode.Boomerang || this._qlParamRepo.latest.mode === Models.QuotingMode.AK47) {
+          _timeProvider.setInterval(this.onTick, moment.duration(21, "seconds"));
+          this.onTick();
+        }
         _orderStatusPublisher.registerSnapshot(() => _.takeRight(this._orderCache.allOrdersFlat, 1000));
         _tradePublisher.registerSnapshot(() => _.takeRight(this._trades, 100));
 
         _submittedOrderReciever.registerReceiver((o : Models.OrderRequestFromUI) => {
-            this._log.info("got new order req", o);
+            // this._log.info("got new order req", o);
             try {
                 var order = new Models.SubmitNewOrder(Models.Side[o.side], o.quantity, Models.OrderType[o.orderType],
                     o.price, Models.TimeInForce[o.timeInForce], this._baseBroker.exchange(), _timeProvider.utcNow(), false);
@@ -435,7 +451,7 @@ export class OrderBroker implements Interfaces.IOrderBroker {
         });
 
         _cancelOrderReciever.registerReceiver(o => {
-            this._log.info("got new cancel req", o);
+            // this._log.info("got new cancel req", o);
             try {
                 this.cancelOrder(new Models.OrderCancel(o.orderId, o.exchange, _timeProvider.utcNow()));
             } catch (e) {
@@ -444,33 +460,36 @@ export class OrderBroker implements Interfaces.IOrderBroker {
         });
 
         _cancelAllOrdersReciever.registerReceiver(o => {
-            this._log.info("handling cancel all orders request");
+            // this._log.info("handling cancel all orders request");
             this.cancelOpenOrders()
-                .then(x => this._log.info("cancelled all ", x, " open orders"),
-                      e => this._log.error(e, "error when cancelling all orders!"));
+                // .then(x => this._log.info("cancelled all ", x, " open orders"),
+                      // e => this._log.error(e, "error when cancelling all orders!"))
+                      ;
         });
 
         _cleanAllClosedOrdersReciever.registerReceiver(o => {
-            this._log.info("handling clean all closed orders request");
+            // this._log.info("handling clean all closed orders request");
             this.cleanClosedOrders()
-                .then(x => this._log.info("cleaned all closed ", x, " closed orders"),
-                      e => this._log.error(e, "error when cleaning all closed orders!"));
+                // .then(x => this._log.info("cleaned all closed ", x, " closed orders"),
+                      // e => this._log.error(e, "error when cleaning all closed orders!"))
+                      ;
         });
 
         _cleanAllOrdersReciever.registerReceiver(o => {
-            this._log.info("handling clean all orders request");
+            // this._log.info("handling clean all orders request");
             this.cleanOrders()
-                .then(x => this._log.info("cleaned all ", x, " closed orders"),
-                      e => this._log.error(e, "error when cleaning all orders!"));
+                // .then(x => this._log.info("cleaned all ", x, " closed orders"),
+                      // e => this._log.error(e, "error when cleaning all orders!"))
+                      ;
         });
 
         this._oeGateway.OrderUpdate.on(this.onOrderUpdate);
 
         _.each(initOrders, this.addOrderStatusToMemory);
-        this._log.info("loaded %d osrs from %d orders", this._orderCache.allOrdersFlat.length, Object.keys(this._orderCache.allOrders).length);
+        // this._log.info("loaded %d osrs from %d orders", this._orderCache.allOrdersFlat.length, Object.keys(this._orderCache.allOrders).length);
 
         _.each(initTrades, t => this._trades.push(t));
-        this._log.info("loaded %d trades", this._trades.length);
+        // this._log.info("loaded %d trades", this._trades.length);
 
         this._oeGateway.ConnectChanged.on(s => {
             _messages.publish("OE gw " + Models.ConnectivityStatus[s]);
@@ -597,8 +616,8 @@ export class ExchangeBroker implements Interfaces.IBroker {
         this._connectStatus = newStatus;
         this.ConnectChanged.trigger(newStatus);
 
-        this._log.info("Connection status changed :: %s :: (md: %s) (oe: %s)", Models.ConnectivityStatus[this._connectStatus],
-            Models.ConnectivityStatus[this.mdConnected], Models.ConnectivityStatus[this.oeConnected]);
+        // this._log.info("Connection status changed :: %s :: (md: %s) (oe: %s)", Models.ConnectivityStatus[this._connectStatus],
+            // Models.ConnectivityStatus[this.mdConnected], Models.ConnectivityStatus[this.oeConnected]);
         this._connectivityPublisher.publish(this.connectStatus);
     };
 

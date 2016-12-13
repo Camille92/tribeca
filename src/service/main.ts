@@ -28,14 +28,14 @@ import fs = require("fs");
 import bunyan = require("bunyan");
 import request = require('request');
 import http = require("http");
-import socket_io = require('socket.io')
+import socket_io = require('socket.io');
+// var heapdump = require('heapdump'); // kill -USR2
 
 import HitBtc = require("./gateways/hitbtc");
 import Coinbase = require("./gateways/coinbase");
 import NullGw = require("./gateways/nullgw");
 import OkCoin = require("./gateways/okcoin");
 import Bitfinex = require("./gateways/bitfinex");
-
 import Utils = require("./utils");
 import Config = require("./config");
 import Broker = require("./broker");
@@ -62,6 +62,7 @@ import Messages = require("./messages");
 import QuotingStyleRegistry = require("./quoting-styles/style-registry");
 import MidMarket = require("./quoting-styles/mid-market");
 import TopJoin = require("./quoting-styles/top-join");
+import PingPong = require("./quoting-styles/ping-pong");
 
 var serverUrl = 'BACKTEST_SERVER_URL' in process.env ? process.env['BACKTEST_SERVER_URL'] : "http://localhost:5001";
 
@@ -332,7 +333,7 @@ var runTradingSystem = (classes: SimulationClasses) : Q.Promise<boolean> => {
         var marketDataBroker = new Broker.MarketDataBroker(gateway.md, marketDataPublisher, marketDataPersister, messages);
         var positionBroker = new Broker.PositionBroker(timeProvider, broker, gateway.pg, positionPublisher, positionPersister, marketDataBroker);
 
-        var startQuoting = (timeProvider.utcNow().diff(initActive.time, 'minutes') < 3 && initActive.active);
+        var startQuoting = (/*timeProvider.utcNow().diff(initActive.time, 'minutes') < 3 &&*/ initActive.active);
         var active = new Active.ActiveRepository(startQuoting, broker, activePublisher, activeReceiver);
 
         var quoter = new Quoter.Quoter(orderBroker, broker);
@@ -355,8 +356,9 @@ var runTradingSystem = (classes: SimulationClasses) : Q.Promise<boolean> => {
             new TopJoin.InverseTopOfTheMarketQuoteStyle(),
             new TopJoin.JoinQuoteStyle(),
             new TopJoin.TopOfTheMarketQuoteStyle(),
-            new TopJoin.PingPongQuoteStyle(),
-            new TopJoin.BoomerangQuoteStyle(),
+            new PingPong.PingPongQuoteStyle(),
+            new PingPong.BoomerangQuoteStyle(),
+            new PingPong.AK47QuoteStyle(),
         ]);
 
         var positionMgr = new PositionManagement.PositionManager(timeProvider, rfvPersister, fvEngine, initRfv, shortEwma, longEwma);

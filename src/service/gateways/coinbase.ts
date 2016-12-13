@@ -11,6 +11,7 @@ import NullGateway = require("./nullgw");
 import Models = require("../../common/models");
 import Utils = require("../utils");
 import Interfaces = require("../interfaces");
+import Q = require("q");
 import io = require("socket.io-client");
 import moment = require("moment");
 import WebSocket = require('ws');
@@ -460,7 +461,7 @@ class CoinbaseMarketDataGateway implements Interfaces.IMarketDataGateway {
 class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
     OrderUpdate = new Utils.Evt<Models.OrderStatusReport>();
 
-    supportsCancelAllOpenOrders = () : boolean => { return false; };
+    supportsCancelAllOpenOrders = () : boolean => { return true; };
     cancelAllOpenOrders = () : Q.Promise<number> => {
         var d = Q.defer<number>();
         this._authClient.cancelAllOrders((err, resp) => {
@@ -520,7 +521,8 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
                     orderId: cancel.clientOrderId,
                     orderStatus: Models.OrderStatus.Cancelled,
                     time: t,
-                    leavesQuantity: 0
+                    leavesQuantity: 0,
+                    done: true
                 };
             }
 
@@ -540,6 +542,7 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
             var t = this._timeProvider.utcNow();
 
             if (ack == null || typeof ack.id === "undefined") {
+              if (ack.message && ack.message!='Insufficient funds')
                 this._log.warn("WARNING FROM GATEWAY:", order.orderId, err, ack);
             }
 
@@ -668,7 +671,7 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
             orderId: orderId,
             orderStatus: ordStatus,
             time: tsMsg.time,
-            leavesQuantity: 0
+            leavesQuantity: 0,
         };
 
         this.OrderUpdate.trigger(status);
