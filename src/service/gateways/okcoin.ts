@@ -420,7 +420,7 @@ class OkCoinPositionGateway implements Interfaces.IPositionGateway {
     private _log = Utils.log("tribeca:gateway:OkCoinPG");
     constructor(private _http : OkCoinHttp) {
         setInterval(this.trigger, 15000);
-        setTimeout(this.trigger, 10);
+        setTimeout(this.trigger, 5000);
     }
 }
 
