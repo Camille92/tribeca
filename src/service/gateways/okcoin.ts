@@ -434,7 +434,7 @@ class OkCoinBaseGateway implements Interfaces.IExchangeDetailsGateway {
     }
 
     makeFee() : number {
-        return 0.001;
+        return 0.000;
     }
 
     takeFee() : number {
