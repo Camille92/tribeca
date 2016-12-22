@@ -10,7 +10,7 @@ WORKDIR tribeca
 RUN npm install -g grunt-cli typings forever
 RUN npm install
 RUN typings install
-RUN grunt compile
+RUN grunt compile --force
 
 EXPOSE 3000 5000
 
