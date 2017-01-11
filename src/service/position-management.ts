@@ -40,7 +40,7 @@ export class PositionManager {
         private _shortEwma: Statistics.IComputeStatistics,
         private _longEwma: Statistics.IComputeStatistics) {
         var lastTime = (this._data !== null && _.some(_data)) ? _.last(this._data).time : null;
-        this._timer = new RegularTimer(_timeProvider, this.updateEwmaValues, moment.duration(10, 'minutes'), lastTime);
+        this._timer = new RegularTimer(_timeProvider, this.updateEwmaValues, moment.duration(1, 'minutes'), lastTime);
     }
 
     private updateEwmaValues = () => {
@@ -54,9 +54,6 @@ export class PositionManager {
         var newLong = this._longEwma.addNewValue(fv.price);
 
         var newTargetPosition = (newShort - newLong) / 2.0;
-
-        if (newTargetPosition > 1) newTargetPosition = 1;
-        if (newTargetPosition < -1) newTargetPosition = -1;
 
         if (Math.abs(newTargetPosition - this._latest) > 1e-2) {
             this._latest = newTargetPosition;
