@@ -48,7 +48,7 @@ export class ObservableEWMACalculator implements Interfaces.IEwmaCalculator {
 
     constructor(private _timeProvider: Utils.ITimeProvider, private _fv: FairValue.FairValueEngine, private _alpha?: number) {
         this._alpha = _alpha || .095;
-        _timeProvider.setInterval(this.onTick, moment.duration(5, "minutes"));
+        _timeProvider.setInterval(this.onTick, moment.duration(1, "minutes"));
         this.onTick();
     }
 
