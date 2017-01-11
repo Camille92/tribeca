@@ -54,6 +54,9 @@ export class PositionManager {
         var newLong = this._longEwma.addNewValue(fv.price);
 
         var newTargetPosition = (newShort - newLong) / 2.0;
+        
+        if (newTargetPosition > 1) newTargetPosition = 1;		
+        if (newTargetPosition < -1) newTargetPosition = -1;		
 
         if (Math.abs(newTargetPosition - this._latest) > 1e-2) {
             this._latest = newTargetPosition;
