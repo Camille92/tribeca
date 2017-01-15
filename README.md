@@ -1,10 +1,19 @@
-![status](https://david-dm.org/ctubio/tribeca.svg)
+[![Release](https://img.shields.io/github/release/ctubio/tribeca.svg)](https://github.com/ctubio/tribeca/releases)
+[![Platform](https://img.shields.io/badge/platform-unix--like-lightgray.svg)](https://www.gnu.org/)
+[![Software License](https://img.shields.io/badge/license-ISC-111111.svg)](https://raw.githubusercontent.com/ctubio/tribeca/master/LICENSE)
+[![Software License](https://img.shields.io/badge/license-MIT-111111.svg)](https://raw.githubusercontent.com/ctubio/tribeca/master/COPYING)
 
 `tribeca.js` is a very low latency cryptocurrency [market making](https://github.com/ctubio/tribeca/blob/master/MANUAL.md#what-is-market-making) trading bot with a full featured [web client](https://github.com/ctubio/tribeca#web-ui), [backtester](https://github.com/ctubio/tribeca/blob/master/MANUAL.md#how-can-i-test-new-trading-strategies), and supports direct connectivity to [several cryptocoin exchanges](https://github.com/ctubio/tribeca/tree/master/etc#configuration-options). On modern hardware, it can react to market data by placing and canceling orders in under a millisecond.
 
-![Web UI Preview](https://raw.githubusercontent.com/ctubio/tribeca/master/dist/img/web_ui_preview.png)
+[![Build Status](https://img.shields.io/travis/ctubio/tribeca/master.svg?label=test%20build)](https://travis-ci.org/ctubio/tribeca)
+[![Coverage Status](https://img.shields.io/coveralls/ctubio/tribeca/master.svg?label=code%20coverage)](https://coveralls.io/r/ctubio/tribeca?branch=master)
+[![Quality Status](https://img.shields.io/codacy/grade/21564745dbb0449ca05912f77d484b0c/master.svg)](https://www.codacy.com/app/ctubio/tribeca)
+[![Dependency Status](https://img.shields.io/david/ctubio/tribeca.svg)](https://david-dm.org/ctubio/tribeca)
+[![Open Issues](https://img.shields.io/github/issues/ctubio/tribeca.svg)](https://github.com/ctubio/tribeca/issues)
 
 Runs on the latest node.js (v6 or greater). Persistence is acheived using mongodb. Installation via Docker is supported, but manual installation in a dedicated fresh unix-like instance is recommended.
+
+![Web UI Preview](https://raw.githubusercontent.com/ctubio/tribeca/master/dist/img/web_ui_preview.png)
 
 ### Compatible Exchanges
 
@@ -64,9 +73,9 @@ Tribeca also exposes a REST API of all it's data. It's all the same data you wou
 
 ### Grafana + InfluxDB + CollectD
 
-Tribeca send metrics periodically to [StatsD plugin of CollectD](https://collectd.org/wiki/index.php/Plugin:StatsD) on default port 8125
+Tribeca send metrics periodically to [StatsD plugin of CollectD](https://collectd.org/wiki/index.php/Plugin:StatsD) on default port localhost:8125
 
-You can setup a Grafana instance with a InfluxDB datasource to read the metrics from CollectD send by Tribeca.
+You can setup a Grafana instance with a InfluxDB datasource to read the metrics from CollectD send by Tribeca like [this guy](https://sonnguyen.ws/monitor-server-with-collectd-influxdb-and-grafana/).
 
 The metrics send are:
 
@@ -84,15 +93,19 @@ Feel free to run `npm test` anytime.
 
 To rebuild the application with your modifications, please run `npm install` or directly `npm run postinstall`.
 
-To piped the output to stdout, execute the application in the foreground with `nodejs tribeca.js`.
+To pipe the output to stdout, execute the application in the foreground with `nodejs tribeca.js`.
 
 To save the output in `log/tribeca.log` file, execute the application in the background with `forever start tribeca.js` or with the alias `npm start`.
+
+Later you can scroll the color-formatted output in the log file with `npm run log`.
 
 ### Unreleased Changelog:
 
 Added nodejs6, typescript2 and angular2.
 
 Added cleanup of global dependencies, source code and installation steps.
+
+Added david-dm, travis-ci, coveralls and codacy.
 
 ### Release 2.0 Changelog:
 

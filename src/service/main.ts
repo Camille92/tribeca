@@ -182,9 +182,9 @@ var liveTradingSetup = () => {
     var webport = config.GetNumber("WebClientListenPort");
     web_server.listen(webport, () => mainLog.info('Listening to admins on *:', webport));
 
-    app.get("/view/*.md", (req: express.Request, res: express.Response) => {
+    app.get("/view/*", (req: express.Request, res: express.Response) => {
       try {
-        res.send(marked(fs.readFileSync('./'+req.path.replace('/view/','').replace('.md','')+'.md', 'utf8')));
+        res.send(marked(fs.readFileSync('./'+req.path.replace('/view/','').replace('/','').replace('..',''), 'utf8')));
       } catch (e) {
         res.send('Document Not Found, but today is a beautiful day.');
       }
@@ -438,7 +438,7 @@ var runTradingSystem = (classes: SimulationClasses) : Q.Promise<boolean> => {
             var delta = process.hrtime(start);
             var ms = (delta[0] * 1e9 + delta[1]) / 1e6;
             var n = ms - interval;
-            if (n > 25)
+            if (n > 69)
                 mainLog.info("Event looped blocked for " + Utils.roundFloat(n) + "ms");
             start = process.hrtime();
         }, interval).unref();

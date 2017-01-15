@@ -1,0 +1,22 @@
+sudo: false
+
+dist: trusty
+
+language: node_js
+
+node_js:
+  - 6
+  - 6.1
+
+branches:
+  only: master
+
+install: npm install
+
+script: npm run test-cov
+
+after_success: npm run send-cov
+
+notifications:
+  email:
+    on_success: never

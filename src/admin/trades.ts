@@ -3,7 +3,7 @@
 /// <reference path='shared_directives.ts'/>
 
 import {NgZone, Component, Inject, OnInit, OnDestroy} from '@angular/core';
-import {GridOptions} from "ag-grid/main";
+import {GridOptions, ColDef, RowNode} from "ag-grid/main";
 import moment = require('moment');
 
 import Models = require('../common/models');
@@ -52,14 +52,14 @@ class DisplayTrade {
 
 @Component({
   selector: 'trade-list',
-  template: `<ag-grid-ng2 #tradeList class="ag-fresh ag-dark" style="height: 187px;width: 100%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
+  template: `<ag-grid-ng2 #tradeList class="ag-fresh ag-dark" style="height: 273px;width: 100%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
 })
 export class TradesComponent implements OnInit, OnDestroy {
 
   private gridOptions: GridOptions = <GridOptions>{};
 
-  public exch : Models.Exchange;
-  public pair : Models.CurrencyPair;
+  public exch: Models.Exchange;
+  public pair: Models.CurrencyPair;
   public audio: boolean;
 
   private subscriberTrades: Messaging.ISubscribe<Models.Trade>;
@@ -72,8 +72,9 @@ export class TradesComponent implements OnInit, OnDestroy {
 
   ngOnInit() {
     this.gridOptions.rowData = [];
+    this.gridOptions.enableSorting = true;
     this.gridOptions.columnDefs = this.createColumnDefs();
-    this.gridOptions.overlayNoRowsTemplate = `<span class="ag-overlay-no-rows-center">empty</span>`;
+    this.gridOptions.overlayNoRowsTemplate = `<span class="ag-overlay-no-rows-center">empty history of trades</span>`;
 
     this.subscriberQPChange = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.QuotingParametersChange)
@@ -90,73 +91,80 @@ export class TradesComponent implements OnInit, OnDestroy {
     this.subscriberTrades.disconnect();
   }
 
-  private createColumnDefs = () => {
+  private createColumnDefs = (): ColDef[] => {
     return [
-      {field:'sortTime', hide: true,
+      {field:'sortTime', hide: true,/*cellRenderer:(params) => {
+          return (params.value) ? Models.toUtcFormattedTime(params.value) : '';
+        },headerName:'h',width: 121,*/
         comparator: (a: moment.Moment, b: moment.Moment) => a.diff(b),
         sort: 'desc' },
       {width: 121, field:'time', headerName:'t', cellRenderer:(params) => {
           return (params.value) ? Models.toUtcFormattedTime(params.value) : '';
         }, cellClass: 'fs11px' },
       {width: 121, field:'Ktime', hide:true, headerName:'timePong', cellRenderer:(params) => {
-          return (params.value) ? Models.toUtcFormattedTime(params.value) : '';
+          return (params.value && params.value!='Invalid date') ? Models.toUtcFormattedTime(params.value) : '';
         }, cellClass: 'fs11px' },
-      {width: 42, field:'side', headerName:'side', cellClass: (params) => {
+      {width: 40, field:'side', headerName:'side', cellClass: (params) => {
         if (params.value === 'Buy') return 'buy';
         else if (params.value === 'Sell') return "sell";
         else if (params.value === 'K') return "kira";
         else return "unknown";
       }},
-      {width: 65, field:'price', headerName:'px', cellRenderer: (params) => {
-          return params.value ? '$'+params.value : '';
-      }, cellClass: (params) => {
+      {width: 65, field:'price', headerName:'px', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
+      }, cellRenderer:(params) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value);
       }},
       {width: 65, field:'quantity', headerName:'qty', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
+      }, cellRenderer:(params) => {
+        return new Intl.NumberFormat('en-US', {  maximumFractionDigits: 3, minimumFractionDigits: 3 }).format(params.value);
       }},
-      {width: 69, field:'value', headerName:'val', cellRenderer: (params) => {
-          return params.value ? '$'+params.value : '';
-      }, cellClass: (params) => {
+      {width: 69, field:'value', headerName:'val', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
+      }, cellRenderer:(params) => {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value);
       }},
-      {width: 69, field:'Kvalue', headerName:'valPong', hide:true, cellRenderer: (params) => {
-          return params.value ? '$'+params.value : '';
-      }, cellClass: (params) => {
+      {width: 69, field:'Kvalue', headerName:'valPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
+      }, cellRenderer:(params) => {
+        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
       }},
       {width: 65, field:'Kqty', headerName:'qtyPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
+      }, cellRenderer:(params) => {
+        return params.value?new Intl.NumberFormat('en-US', {  maximumFractionDigits: 3, minimumFractionDigits: 3 }).format(params.value):'';
       }},
-      {width: 65, field:'Kprice', headerName:'pxPong', hide:true, cellRenderer: (params) => {
-          return params.value ? '$'+params.value : '';
-      }, cellClass: (params) => {
+      {width: 65, field:'Kprice', headerName:'pxPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
+      }, cellRenderer:(params) => {
+        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
       }},
-      {width: 65, field:'Kdiff', headerName:'Kdiff', hide:true, cellRenderer: (params) => {
-          return params.value ? '$'+params.value : '';
-      }, cellClass: (params) => {
+      {width: 65, field:'Kdiff', headerName:'Kdiff', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return "kira"; else return "";
+      }, cellRenderer:(params) => {
+        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
       }}
     ];
   }
 
   private addRowData = (t: Models.Trade) => {
     if (t.Kqty<0) {
-      this.gridOptions.api.forEachNode((node) => {
+      this.gridOptions.api.forEachNode((node: RowNode) => {
         if (node.data.tradeId==t.tradeId)
           this.gridOptions.api.removeItems([node]);
       });
     } else {
       var exists = false;
-      this.gridOptions.api.forEachNode((node) => {
+      this.gridOptions.api.forEachNode((node: RowNode) => {
         if (node.data.tradeId==t.tradeId) {
           exists = true;
           node.data.time = (moment.isMoment(t.time) ? t.time : moment(t.time));
           var merged = (node.data.quantity != t.quantity);
           node.data.quantity = t.quantity;
           node.data.value = t.value;
-          node.data.Ktime = (moment.isMoment(t.Ktime) ? t.Ktime : moment(t.Ktime));
+          if (t.Ktime && <any>t.Ktime=='Invalid date') t.Ktime = null;
+          node.data.Ktime = t.Ktime?(moment.isMoment(t.Ktime) ? t.Ktime : moment(t.Ktime)):null;
           node.data.Kqty = t.Kqty;
           node.data.Kprice = t.Kprice;
           node.data.Kvalue = t.Kvalue;
@@ -164,7 +172,7 @@ export class TradesComponent implements OnInit, OnDestroy {
           node.data.sortTime = node.data.Ktime ? node.data.Ktime : node.data.time;
           if (node.data.Kqty >= node.data.quantity)
             node.data.side = 'K';
-          this.gridOptions.api.refreshView();
+          this.gridOptions.api.refreshRows([node]);
           if (t.loadedFromDB === false && this.audio) {
             var audio = new Audio('/audio/'+(merged?'boom':'erang')+'.mp3');
             audio.volume = 0.5;
@@ -185,16 +193,14 @@ export class TradesComponent implements OnInit, OnDestroy {
 
   private updateQP = (qp: Models.QuotingParameters) => {
     this.audio = qp.audio;
-    var modGrid = (qp.mode === Models.QuotingMode.Boomerang || qp.mode === Models.QuotingMode.AK47);
-    ['Kqty','Kprice','Kvalue','Kdiff','Ktime'].map(r => {
-      this.gridOptions.columnApi.setColumnVisible(r, modGrid);
-    });
-    this.gridOptions.columnDefs.map((r:any) => {
-      [['time','timePing'],['price','pxPing'],['quantity','qtyPing'],['value','valPing']].map(t => {
-        if (r.field == t[0]) r.headerName = modGrid ? t[1] : t[1].replace('Ping','');
+    var isK = (qp.mode === Models.QuotingMode.Boomerang || qp.mode === Models.QuotingMode.AK47);
+    this.gridOptions.columnDefs.map((r: ColDef) => {
+      ['Kqty','Kprice','Kvalue','Kdiff','Ktime',['time','timePing'],['price','pxPing'],['quantity','qtyPing'],['value','valPing']].map(t => {
+        if (t[0]==r.field) r.headerName = isK ? t[1] : t[1].replace('Ping','');
+        if (r.field[0]=='K') r.hide = !isK;
       });
       return r;
     });
-    this.gridOptions.api.refreshHeader();
+    this.gridOptions.api.setColumnDefs(this.gridOptions.columnDefs);
   }
 }
