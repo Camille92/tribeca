@@ -25,7 +25,7 @@ import moment = require("moment");
 
 import Models = require('../common/models');
 import Messaging = require('../common/messaging');
-import {SharedModule, FireFactory, SubscriberFactory} from './shared_directives';
+import {SharedModule, FireFactory, SubscriberFactory, BaseCurrencyCellComponent, QuoteCurrencyCellComponent} from './shared_directives';
 import Pair = require('./pair');
 import {WalletPositionComponent} from './wallet-position';
 import {MarketQuotingComponent} from './market-quoting';
@@ -270,7 +270,7 @@ class DisplayOrder {
                                                 </select>
                                             </td>
                                             <td>
-                                                <input class="form-control input-sm"
+                                                <input class="width-option form-control input-sm"
                                                    type="number"
                                                    onClick="this.select()"
                                                    [(ngModel)]="pair.quotingParameters.display.width">
@@ -362,7 +362,7 @@ class DisplayOrder {
     </div>
     <address class="text-center">
       <small>
-        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a>
+        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a> - <a title="irc://irc.domirc.net:6667/##tradingBot" href="irc://irc.domirc.net:6667/##tradingBot">IRC</a>
       </small>
     </address>
   </div>`
@@ -496,7 +496,10 @@ class ClientComponent implements OnInit, OnDestroy {
     BrowserModule,
     FormsModule,
     PopoverModule,
-    AgGridModule.withComponents([])
+    AgGridModule.withComponents([
+      BaseCurrencyCellComponent,
+      QuoteCurrencyCellComponent
+    ])
   ],
   declarations: [
     ClientComponent,
@@ -506,6 +509,8 @@ class ClientComponent implements OnInit, OnDestroy {
     MarketTradesComponent,
     WalletPositionComponent,
     TradeSafetyComponent,
+    BaseCurrencyCellComponent,
+    QuoteCurrencyCellComponent
   ],
   bootstrap: [ClientComponent]
 })

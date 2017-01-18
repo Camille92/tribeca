@@ -8,7 +8,7 @@ import moment = require('moment');
 
 import Models = require('../common/models');
 import Messaging = require('../common/messaging');
-import {SubscriberFactory} from './shared_directives';
+import {SubscriberFactory, BaseCurrencyCellComponent, QuoteCurrencyCellComponent} from './shared_directives';
 
 class DisplayTrade {
   tradeId: string;
@@ -23,10 +23,10 @@ class DisplayTrade {
   Kprice: number;
   Kvalue: number;
   Kdiff: number;
-  sortTime: moment.Moment;
+  quoteSymbol: string;
 
   constructor(
-    public trade: Models.Trade
+    private trade: Models.Trade
   ) {
     this.tradeId = trade.tradeId;
     this.side = (trade.Kqty >= trade.quantity) ? 'K' : (trade.side === Models.Side.Ask ? "Sell" : "Buy");
@@ -40,7 +40,7 @@ class DisplayTrade {
     this.Kprice = trade.Kprice ? trade.Kprice : null;
     this.Kvalue = trade.Kvalue ? trade.Kvalue : null;
     this.Kdiff = (trade.Kdiff && trade.Kdiff!=0) ? trade.Kdiff : null;
-    this.sortTime = this.Ktime ? this.Ktime : this.time;
+    this.quoteSymbol = Models.Currency[trade.pair.quote];
 
     if (trade.liquidity === 0 || trade.liquidity === 1) {
       this.liquidity = Models.Liquidity[trade.liquidity].charAt(0);
@@ -93,14 +93,11 @@ export class TradesComponent implements OnInit, OnDestroy {
 
   private createColumnDefs = (): ColDef[] => {
     return [
-      {field:'sortTime', hide: true,/*cellRenderer:(params) => {
-          return (params.value) ? Models.toUtcFormattedTime(params.value) : '';
-        },headerName:'h',width: 121,*/
-        comparator: (a: moment.Moment, b: moment.Moment) => a.diff(b),
-        sort: 'desc' },
       {width: 121, field:'time', headerName:'t', cellRenderer:(params) => {
           return (params.value) ? Models.toUtcFormattedTime(params.value) : '';
-        }, cellClass: 'fs11px' },
+        }, cellClass: 'fs11px', comparator: (aValue: moment.Moment, bValue: moment.Moment, aNode: RowNode, bNode: RowNode) => {
+          return (aNode.data.Ktime||aNode.data.time).diff(bNode.data.Ktime||bNode.data.time);
+      }, sort: 'desc'},
       {width: 121, field:'Ktime', hide:true, headerName:'timePong', cellRenderer:(params) => {
           return (params.value && params.value!='Invalid date') ? Models.toUtcFormattedTime(params.value) : '';
         }, cellClass: 'fs11px' },
@@ -112,39 +109,25 @@ export class TradesComponent implements OnInit, OnDestroy {
       }},
       {width: 65, field:'price', headerName:'px', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
-      }, cellRenderer:(params) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value);
-      }},
+      }, cellRendererFramework: QuoteCurrencyCellComponent},
       {width: 65, field:'quantity', headerName:'qty', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
-      }, cellRenderer:(params) => {
-        return new Intl.NumberFormat('en-US', {  maximumFractionDigits: 3, minimumFractionDigits: 3 }).format(params.value);
-      }},
+      }, cellRendererFramework: BaseCurrencyCellComponent},
       {width: 69, field:'value', headerName:'val', cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price > params.data.Kprice) ? "sell" : "buy"; else return params.data.side === 'Sell' ? "sell" : "buy";
-      }, cellRenderer:(params) => {
-        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value);
-      }},
+      }, cellRendererFramework: QuoteCurrencyCellComponent},
       {width: 69, field:'Kvalue', headerName:'valPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
-      }, cellRenderer:(params) => {
-        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
-      }},
+      }, cellRendererFramework: QuoteCurrencyCellComponent},
       {width: 65, field:'Kqty', headerName:'qtyPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
-      }, cellRenderer:(params) => {
-        return params.value?new Intl.NumberFormat('en-US', {  maximumFractionDigits: 3, minimumFractionDigits: 3 }).format(params.value):'';
-      }},
+      }, cellRendererFramework: BaseCurrencyCellComponent},
       {width: 65, field:'Kprice', headerName:'pxPong', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return (params.data.price < params.data.Kprice) ? "sell" : "buy"; else return params.data.Kqty ? ((params.data.price < params.data.Kprice) ? "sell" : "buy") : "";
-      }, cellRenderer:(params) => {
-        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
-      }},
+      }, cellRendererFramework: QuoteCurrencyCellComponent},
       {width: 65, field:'Kdiff', headerName:'Kdiff', hide:true, cellClass: (params) => {
         if (params.data.side === 'K') return "kira"; else return "";
-      }, cellRenderer:(params) => {
-        return params.value?new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',  maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(params.value):'';
-      }}
+      }, cellRendererFramework: QuoteCurrencyCellComponent}
     ];
   }
 
@@ -169,10 +152,8 @@ export class TradesComponent implements OnInit, OnDestroy {
           node.data.Kprice = t.Kprice;
           node.data.Kvalue = t.Kvalue;
           node.data.Kdiff = t.Kdiff?t.Kdiff:null;
-          node.data.sortTime = node.data.Ktime ? node.data.Ktime : node.data.time;
           if (node.data.Kqty >= node.data.quantity)
             node.data.side = 'K';
-          this.gridOptions.api.refreshRows([node]);
           if (t.loadedFromDB === false && this.audio) {
             var audio = new Audio('/audio/'+(merged?'boom':'erang')+'.mp3');
             audio.volume = 0.5;
@@ -188,6 +169,7 @@ export class TradesComponent implements OnInit, OnDestroy {
           audio.play();
         }
       }
+      this.gridOptions.api.refreshView();
     }
   }
 

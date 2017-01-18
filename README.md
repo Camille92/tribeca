@@ -1,3 +1,5 @@
+[***REFUGEES WELCOME!***](http://www.refugeesaid.eu/rab-campaign/)
+
 [![Release](https://img.shields.io/github/release/ctubio/tribeca.svg)](https://github.com/ctubio/tribeca/releases)
 [![Platform](https://img.shields.io/badge/platform-unix--like-lightgray.svg)](https://www.gnu.org/)
 [![Software License](https://img.shields.io/badge/license-ISC-111111.svg)](https://raw.githubusercontent.com/ctubio/tribeca/master/LICENSE)
@@ -128,3 +130,5 @@ see the upstream project [michaelgrosner/tribeca](https://github.com/michaelgros
 nope. but you can donate to your favorite developer today! (or tomorrow!)
 
 or see the upstream project [michaelgrosner/tribeca](https://github.com/michaelgrosner/tribeca).
+
+or donate your time with programming or financial suggestions in the topical IRC channel **##tradingBot** at irc.domirc.net on port 6697 (SSL), or 6667 (plain) or feel free to make any question, but questions technically are not donations.

@@ -157,8 +157,8 @@ class OkCoinMarketDataGateway implements Interfaces.IMarketDataGateway {
     private onDepth = (depth : Models.Timestamped<OkCoinDepthMessage>) => {
         var msg = depth.data;
 
-        var bids = _(msg.bids).take(3).map(OkCoinMarketDataGateway.GetLevel).value();
-        var asks = _(msg.asks).reverse().take(3).map(OkCoinMarketDataGateway.GetLevel).value()
+        var bids = _(msg.bids).take(9).map(OkCoinMarketDataGateway.GetLevel).value();
+        var asks = _(msg.asks).reverse().take(9).map(OkCoinMarketDataGateway.GetLevel).value()
         var mkt = new Models.Market(bids, asks, depth.time);
 
         this.MarketData.trigger(mkt);
@@ -397,12 +397,16 @@ class OkCoinPositionGateway implements Interfaces.IPositionGateway {
             case "usd": return Models.Currency.USD;
             case "ltc": return Models.Currency.LTC;
             case "btc": return Models.Currency.BTC;
+            case "cny": return Models.Currency.CNY;
             default: throw new Error("Unsupported currency " + name);
         }
     }
 
     private trigger = () => {
         this._http.post("userinfo.do", {}).then(msg => {
+            if (!(<any>msg.data).result)
+              this._log.error('Please change the API Key or contact support team of OkCoin, your API Key does not work because was not possible to retrieve your real wallet position; the application will probably crash now.');
+
             var free = (<any>msg.data).info.funds.free;
             var freezed = (<any>msg.data).info.funds.freezed;
 
@@ -459,6 +463,7 @@ function GetCurrencyEnum(c: string) : Models.Currency {
         case "usd": return Models.Currency.USD;
         case "ltc": return Models.Currency.LTC;
         case "btc": return Models.Currency.BTC;
+        case "cny": return Models.Currency.CNY;
         default: throw new Error("Unsupported currency " + c);
     }
 }
@@ -468,6 +473,7 @@ function GetCurrencySymbol(c: Models.Currency) : string {
         case Models.Currency.USD: return "usd";
         case Models.Currency.LTC: return "ltc";
         case Models.Currency.BTC: return "btc";
+        case Models.Currency.CNY: return "cny";
         default: throw new Error("Unsupported currency " + Models.Currency[c]);
     }
 }
