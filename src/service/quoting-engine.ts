@@ -100,7 +100,7 @@ export class QuotingEngine {
             unrounded.askPx = null;
             unrounded.askSz = null;
             if (params.aggressivePositionRebalancing)
-                unrounded.bidSz = Math.min(params.aprMultiplier*params.buySize, targetBasePosition - totalBasePosition);
+                unrounded.bidSz = Math.min(params.aprMultiplier*params.buySize, targetBasePosition - totalBasePosition, totalBasePosition / 2);
         }
 
         if (totalBasePosition > targetBasePosition + params.positionDivergence) {
