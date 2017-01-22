@@ -45,15 +45,6 @@ export class Quoter {
         }
     };
 
-    public cancelOneQuote = (s: Models.Timestamped<Models.Side>): Models.QuoteSent => {
-        switch (s.data) {
-            case Models.Side.Ask:
-                return this._askQuoter.cancelOneQuote(s.time);
-            case Models.Side.Bid:
-                return this._bidQuoter.cancelOneQuote(s.time);
-        }
-    };
-
     public quotesSent = (s: Models.Side) => {
         switch (s) {
             case Models.Side.Ask:
@@ -118,13 +109,6 @@ export class ExchangeQuoter {
       });
     };
 
-    public cancelOneQuote = (t: moment.Moment): Models.QuoteSent => {
-        if (this._exchBroker.connectStatus !== Models.ConnectivityStatus.Connected)
-            return Models.QuoteSent.UnableToSend;
-
-        return this.stopLowest(t);
-    };
-
     public cancelQuote = (t: moment.Moment): Models.QuoteSent => {
         if (this._exchBroker.connectStatus !== Models.ConnectivityStatus.Connected)
             return Models.QuoteSent.UnableToSend;
@@ -143,8 +127,8 @@ export class ExchangeQuoter {
     private start = (q: Models.Timestamped<Models.Quote>): Models.QuoteSent => {
         let price: number = q.data.price;
         if (this._activeQuote.filter(o =>
-          price + this._qlParamRepo.latest.range - 0.01 >= o.quote.price
-          && price - this._qlParamRepo.latest.range - 0.01 <= o.quote.price
+          price + this._qlParamRepo.latest.range - 1e-2 >= o.quote.price
+          && price - this._qlParamRepo.latest.range - 1e-2 <= o.quote.price
         ).length) {
           if (this._qlParamRepo.latest.mode === Models.QuotingMode.AK47) {
             if (this.quotesSent.length<this._qlParamRepo.latest.bullets) {
@@ -152,6 +136,7 @@ export class ExchangeQuoter {
                 _.last(this._activeQuote).quote.price
                 + (this._qlParamRepo.latest.range * (this._side === Models.Side.Bid ? -1 : 1 ))
               );
+              q.data.price = price;
               if (this.quotesSent.filter(o => price === o.quote.price).length)
                 return Models.QuoteSent.UnsentDuplicate;
               this.cancelHigherQuotes(q.data.price, q.time);
@@ -160,7 +145,7 @@ export class ExchangeQuoter {
           } else
             return Models.QuoteSent.UnsentDuplicate;
         }
-        q.data.price = price;
+
         var quoteOrder = new QuoteOrder(q.data, this._broker.sendOrder(
           new Models.SubmitNewOrder(this._side, q.data.size, Models.OrderType.Limit,
             price, Models.TimeInForce.GTC, this._exchange, q.time, true)
