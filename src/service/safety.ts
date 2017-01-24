@@ -93,8 +93,8 @@ export class SafetyCalculator {
         var fv = this._fvEngine.latestFairValue;
         var fvp = 0;
         if (fv != null) {fvp = fv.price;}
-        if (settings.pongAt == Models.PongAt.LowMarginPing) {
-          trades.sort(function(a,b){return a.price>b.price?1:(a.price<b.price?-1:0);});
+        if (settings.pongAt == Models.PongAt.ShortPingFair || settings.pongAt == Models.PongAt.ShortPingAggressive) {
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price>b.price?1:(a.price<b.price?-1:0));
           for (var ti = 0;ti<trades.length;ti++) {
             if ((!fvp || (fvp>trades[ti].price && fvp-settings.width<trades[ti].price)) && ((settings.mode !== Models.QuotingMode.Boomerang && settings.mode !== Models.QuotingMode.AK47) || trades[ti].Kqty<trades[ti].quantity) && trades[ti].side == Models.Side.Bid && buyPq<settings.sellSize) {
               _buyPq = Math.min(settings.sellSize - buyPq, trades[ti].quantity);
@@ -103,9 +103,9 @@ export class SafetyCalculator {
             }
             if (buyPq>=settings.sellSize) break;
           }
-          trades.sort(function(a,b){return a.price<b.price?1:(a.price>b.price?-1:0);});
-        } else if (settings.pongAt == Models.PongAt.HighMarginPing)
-          trades.sort(function(a,b){return a.price>b.price?1:(a.price<b.price?-1:0);});
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price<b.price?1:(a.price>b.price?-1:0));
+        } else if (settings.pongAt == Models.PongAt.LongPingFair || settings.pongAt == Models.PongAt.LongPingAggressive)
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price>b.price?1:(a.price<b.price?-1:0));
         if (!buyPq) for (var ti = 0;ti<trades.length;ti++) {
           if ((!fvp || fvp>trades[ti].price) && ((settings.mode !== Models.QuotingMode.Boomerang && settings.mode !== Models.QuotingMode.AK47) || trades[ti].Kqty<trades[ti].quantity) && trades[ti].side == Models.Side.Bid && buyPq<settings.sellSize) {
             _buyPq = Math.min(settings.sellSize - buyPq, trades[ti].quantity);
@@ -114,8 +114,8 @@ export class SafetyCalculator {
           }
           if (buyPq>=settings.sellSize) break;
         }
-        if (settings.pongAt == Models.PongAt.LowMarginPing) {
-          trades.sort(function(a,b){return a.price<b.price?1:(a.price>b.price?-1:0);});
+        if (settings.pongAt == Models.PongAt.ShortPingFair || settings.pongAt == Models.PongAt.ShortPingAggressive) {
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price<b.price?1:(a.price>b.price?-1:0));
           for (var ti = 0;ti<trades.length;ti++) {
             if ((!fvp || (fvp<trades[ti].price && fvp+settings.width>trades[ti].price)) && ((settings.mode !== Models.QuotingMode.Boomerang && settings.mode !== Models.QuotingMode.AK47) || trades[ti].Kqty<trades[ti].quantity) && trades[ti].side == Models.Side.Ask && sellPq<settings.buySize) {
               _sellPq = Math.min(settings.buySize - sellPq, trades[ti].quantity);
@@ -124,9 +124,9 @@ export class SafetyCalculator {
             }
             if (sellPq>=settings.buySize) break;
           }
-          trades.sort(function(a,b){return a.price>b.price?1:(a.price<b.price?-1:0);});
-        } else if (settings.pongAt == Models.PongAt.HighMarginPing)
-          trades.sort(function(a,b){return a.price<b.price?1:(a.price>b.price?-1:0);});
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price>b.price?1:(a.price<b.price?-1:0));
+        } else if (settings.pongAt == Models.PongAt.LongPingFair || settings.pongAt == Models.PongAt.LongPingAggressive)
+          trades.sort((a: Models.Trade, b: Models.Trade) => a.price<b.price?1:(a.price>b.price?-1:0));
         if (!sellPq) for (var ti = 0;ti<trades.length;ti++) {
           if ((!fvp || fvp<trades[ti].price) && ((settings.mode !== Models.QuotingMode.Boomerang && settings.mode !== Models.QuotingMode.AK47) || trades[ti].Kqty<trades[ti].quantity) && trades[ti].side == Models.Side.Ask && sellPq<settings.buySize) {
             _sellPq = Math.min(settings.buySize - sellPq, trades[ti].quantity);

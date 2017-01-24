@@ -19,11 +19,10 @@ var metrics = new Lynx('localhost', 8125);
 
 export class MarketDataBroker implements Interfaces.IMarketDataBroker {
     MarketData = new Utils.Evt<Models.Market>();
-    public get currentBook() : Models.Market { return this._currentBook; }
+    public get currentBook(): Models.Market { return this._currentBook; }
 
-    // private _log = Utils.log("md:broker");
-    private _currentBook : Models.Market = null;
-    private handleMarketData = (book : Models.Market) => {
+    private _currentBook: Models.Market = null;
+    private handleMarketData = (book: Models.Market) => {
         this._currentBook = book;
         this.MarketData.trigger(this.currentBook);
         this._marketPublisher.publish(this.currentBook);
@@ -38,14 +37,13 @@ export class MarketDataBroker implements Interfaces.IMarketDataBroker {
         this._mdGateway.MarketData.on(this.handleMarketData);
         this._mdGateway.ConnectChanged.on(s => {
             if (s == Models.ConnectivityStatus.Disconnected) this._currentBook = null;
-            // this._log.info("MarkedData changed: " + Models.ConnectivityStatus[s]);
         });
     }
 }
 
 export class OrderStateCache implements Interfaces.IOrderStateCache {
-    public allOrders : { [orderId: string]: Models.OrderStatusReport } = {};
-    public exchIdsToClientIds : { [exchId: string] : string} = {};
+    public allOrders: { [orderId: string]: Models.OrderStatusReport } = {};
+    public exchIdsToClientIds: { [exchId: string]: string} = {};
 }
 
 export class OrderBroker implements Interfaces.IOrderBroker {
@@ -233,8 +231,6 @@ export class OrderBroker implements Interfaces.IOrderBroker {
 
     private _reTrade = (reTrades: Models.Trade[], trade: Models.Trade) => {
       var gowhile = true;
-      if (reTrades!=null && reTrades.length && this._qlParamRepo.latest.pongAt == Models.PongAt.HighMarginPing)
-        reTrades.reverse();
       while (gowhile && trade.quantity>0 && reTrades!=null && reTrades.length) {
         var reTrade = reTrades.shift();
         gowhile = false;
@@ -381,7 +377,22 @@ export class OrderBroker implements Interfaces.IOrderBroker {
                 o.lastPrice, o.lastQuantity, o.side, value, o.liquidity, null, 0, 0, 0, 0, feeCharged, false);
             this.Trade.trigger(trade);
             if (this._qlParamRepo.latest.mode === Models.QuotingMode.Boomerang || this._qlParamRepo.latest.mode === Models.QuotingMode.AK47)
-              this._tradePersister.perfind(trade, trade.side, this._qlParamRepo.latest.width, trade.price).then(reTrades => { this._reTrade(reTrades, trade); });
+              this._reTrade(this._trades.filter((x: Models.Trade) => (
+                (trade.side==Models.Side.Bid?(x.price > (trade.price + this._qlParamRepo.latest.width)):(x.price < (trade.price - this._qlParamRepo.latest.width)))
+                && (x.side == (trade.side==Models.Side.Bid?Models.Side.Ask:Models.Side.Bid))
+                && ((x.quantity - x.Kqty) > 0)
+              )).sort((a: Models.Trade, b: Models.Trade) => (
+                (this._qlParamRepo.latest.pongAt == Models.PongAt.LongPingFair || this._qlParamRepo.latest.pongAt == Models.PongAt.LongPingAggressive)
+                  ? (
+                  trade.side==Models.Side.Bid
+                    ? (a.price<b.price?1:(a.price>b.price?-1:0))
+                    : (a.price>b.price?1:(a.price<b.price?-1:0))
+                ) : (
+                  trade.side==Models.Side.Bid
+                    ? (a.price>b.price?1:(a.price<b.price?-1:0))
+                    : (a.price<b.price?1:(a.price>b.price?-1:0))
+                )
+              )), trade);
             else {
               this._tradePublisher.publish(trade);
               this._tradePersister.persist(trade);

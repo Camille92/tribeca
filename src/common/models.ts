@@ -1,7 +1,7 @@
 import moment = require("moment");
 
 export interface ITimestamped {
-    time : moment.Moment;
+    time: moment.Moment;
 }
 
 export class Timestamped<T> implements ITimestamped {
@@ -335,7 +335,7 @@ export enum QuotingMode { Top, Mid, Join, InverseJoin, InverseTop, PingPong, Boo
 export enum FairValueModel { BBO, wBBO }
 export enum AutoPositionMode { Off, EwmaBasic }
 export enum PingAt { BothSides, BidSide, AskSide, DepletedSide, DepletedBidSide, DepletedAskSide, StopPings  }
-export enum PongAt { LowMarginPing, HighMarginPing }
+export enum PongAt { ShortPingFair, LongPingFair, ShortPingAggressive, LongPingAggressive }
 
 export class QuotingParameters {
     constructor(public width: number,
@@ -380,10 +380,6 @@ export class ProductAdvertisement {
 
 export class ApplicationState {
     constructor(public memory: number, public hour: number) { }
-}
-
-export class Notepad {
-    constructor(public content: string) { }
 }
 
 export class RegularFairValue {

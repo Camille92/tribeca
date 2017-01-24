@@ -10,7 +10,7 @@ import {SubscriberFactory} from './shared_directives';
 
 @Component({
   selector: 'market-quoting',
-  template: `<table class="table table-hover table-bordered table-condensed table-responsive text-center">
+  template: `<table class="marketQuoting table table-hover table-bordered table-condensed table-responsive text-center">
       <tr class="active">
         <th></th>
         <th>bidSz&nbsp;</th>
@@ -68,11 +68,10 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
       );
     };
 
-    makeSubscriber<Models.Market>(Messaging.Topics.MarketData, this.updateMarket, this.clearMarket);
-    makeSubscriber<Models.OrderStatusReport>(Messaging.Topics.OrderStatusReports, this.updateQuote, this.clearQuote);
+    makeSubscriber<Models.Timestamped<any[]>>(Messaging.Topics.MarketData, this.updateMarket, this.clearMarket);
+    makeSubscriber<Models.Timestamped<any[]>>(Messaging.Topics.OrderStatusReports, this.updateQuote, this.clearQuote);
     makeSubscriber<Models.TwoSidedQuoteStatus>(Messaging.Topics.QuoteStatus, this.updateQuoteStatus, this.clearQuoteStatus);
     makeSubscriber<Models.FairValue>(Messaging.Topics.FairValue, this.updateFairValue, this.clearFairValue);
-
   }
 
   ngOnDestroy() {
@@ -96,17 +95,19 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
     this.askIsLive = false;
   }
 
-  private updateMarket = (update: Models.Market) => {
+  private updateMarket = (update: Models.Timestamped<any[]>) => {
     if (update == null) {
       this.clearMarket();
       return;
     }
 
-    for (var i = 0; i < update.asks.length; i++) {
+    let price: number = 0;
+    for (var i = 0; i < update.data[1].length; i++) {
       if (i >= this.levels.length)
         this.levels[i] = <any>{};
-      this.levels[i].askPrice = update.asks[i].price;
-      this.levels[i].askSize = update.asks[i].size;
+      this.levels[i].askPrice = price + update.data[1][i][0];
+      price = this.levels[i].askPrice;
+      this.levels[i].askSize = update.data[1][i][1];
     }
 
     if (this.order_classes.length) {
@@ -123,11 +124,14 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
         this.qAskSz = ask.quantity;
       }
     }
-    for (var i = 0; i < update.bids.length; i++) {
+
+    price = 0;
+    for (var i = 0; i < update.data[0].length; i++) {
       if (i >= this.levels.length)
         this.levels[i] = <any>{};
-      this.levels[i].bidPrice = update.bids[i].price;
-      this.levels[i].bidSize = update.bids[i].size;
+      this.levels[i].bidPrice = Math.abs(price - update.data[0][i][0]);
+      price = this.levels[i].bidPrice;
+      this.levels[i].bidSize = update.data[0][i][1];
       this.levels[i].diffWidth = i==0
         ? this.levels[i].askPrice - this.levels[i].bidPrice : (
           (i==1 && this.qAskPx && this.qBidPx)
@@ -138,17 +142,17 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
     this.updateQuoteClass();
   }
 
-  private updateQuote = (o: Models.OrderStatusReport) => {
-    if (o.orderStatus == Models.OrderStatus.Cancelled
-      || o.orderStatus == Models.OrderStatus.Complete
-      || o.orderStatus == Models.OrderStatus.Rejected
-    ) this.order_classes = this.order_classes.filter(x => x.orderId !== o.orderId);
-    else if (!this.order_classes.filter(x => x.orderId === o.orderId).length)
+  private updateQuote = (o: Models.Timestamped<any[]>) => {
+    if (o.data[11] == Models.OrderStatus.Cancelled
+      || o.data[11] == Models.OrderStatus.Complete
+      || o.data[11] == Models.OrderStatus.Rejected
+    ) this.order_classes = this.order_classes.filter(x => x.orderId !== o.data[0]);
+    else if (!this.order_classes.filter(x => x.orderId === o.data[0]).length)
       this.order_classes.push({
-        orderId: o.orderId,
-        side: o.side,
-        quantity: o.quantity,
-        price: o.price
+        orderId: o.data[0],
+        side: o.data[5],
+        quantity: o.data[4],
+        price: o.data[3]
       });
 
     this.updateQuoteClass();
@@ -167,7 +171,7 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
 
   private updateQuoteClass = () => {
     if (this.levels && this.levels.length > 0) {
-      var tol = .005;
+      var tol = 5e-3;
       for (var i = 0; i < this.levels.length; i++) {
         var level = this.levels[i];
         level.bidClass = 'active ';

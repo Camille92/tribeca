@@ -8,30 +8,56 @@ module Prefixes {
     export var MESSAGE = "m";
 }
 
+export class Topics {
+    static FairValue = "fv";
+    static Quote = "q";
+    static ActiveSubscription = "a";
+    static ActiveChange = "ac";
+    static MarketData = "md";
+    static QuotingParametersChange = "qp-sub";
+    static SafetySettings = "ss";
+    static Product = "p";
+    static OrderStatusReports = "osr";
+    static ProductAdvertisement = "pa";
+    static ApplicationState = "as";
+    static Notepad = "np";
+    static ToggleConfigs = "tg";
+    static Position = "pos";
+    static ExchangeConnectivity = "ec";
+    static SubmitNewOrder = "sno";
+    static CancelOrder = "cxl";
+    static MarketTrade = "mt";
+    static Trades = "t";
+    static ExternalValuation = "ev";
+    static QuoteStatus = "qs";
+    static TargetBasePosition = "tbp";
+    static TradeSafetyValue = "tsv";
+    static CancelAllOrders = "cao";
+    static CleanAllClosedOrders = "kko";
+    static CleanAllOrders = "kao";
+}
+
 export interface IPublish<T> {
-    publish : (msg : T) => void;
-    registerSnapshot : (generator : () => T[]) => IPublish<T>;
+    publish: (msg: T) => void;
+    registerSnapshot: (generator: () => T[]) => IPublish<T>;
 }
 
 export class Publisher<T> implements IPublish<T> {
-    private _snapshot : () => T[] = null;
-    constructor(private topic : string,
-                private _io : SocketIO.Server,
-                snapshot : () => T[]) {
+    private _snapshot: () => T[] = null;
+    constructor(private topic: string,
+                private _io: SocketIO.Server,
+                private snapshot: () => T[]) {
         this.registerSnapshot(snapshot || null);
 
         var onConnection = s => {
-            // this._log("socket", s.id, "connected for Publisher", topic);
-
-            // s.on("disconnect", () => {
-                // this._log("socket", s.id, "disconnected for Publisher", topic);
-            // });
-
             s.on(Prefixes.SUBSCRIBE + "-" + topic, () => {
                 if (this._snapshot !== null) {
-                    var snapshot = this._snapshot();
-                    // this._log("socket", s.id, "asking for snapshot on topic", topic);
-                    s.compress(true).emit(Prefixes.SNAPSHOT + "-" + topic, snapshot);
+                  let snap: T[] = this._snapshot();
+                  if (this.topic === Topics.MarketData)
+                    snap = this.compressSnapshot(this._snapshot(), this.compressMarketDataInc);
+                  else if (this.topic === Topics.OrderStatusReports)
+                    snap = this.compressSnapshot(this._snapshot(), this.compressOSRInc);
+                  s.emit(Prefixes.SNAPSHOT + "-" + topic, snap);
                 }
             });
         };
@@ -43,18 +69,61 @@ export class Publisher<T> implements IPublish<T> {
         });
     }
 
-    public publish = (msg : T) => this._io.compress(true).emit(Prefixes.MESSAGE + "-" + this.topic, msg);
+    public publish = (msg: T) => {
+      if (this.topic === Topics.MarketData)
+        msg = this.compressMarketDataInc(msg);
+      else if (this.topic === Topics.OrderStatusReports)
+        msg = this.compressOSRInc(msg);
+      this._io.emit(Prefixes.MESSAGE + "-" + this.topic, msg)
+    };
 
-    public registerSnapshot = (generator : () => T[]) => {
-        if (this._snapshot === null) {
-            this._snapshot = generator;
-        }
-        else {
-            throw new Error("already registered snapshot generator for topic " + this.topic);
-        }
-
+    public registerSnapshot = (generator: () => T[]) => {
+        if (this._snapshot === null) this._snapshot = generator;
+        else throw new Error("already registered snapshot generator for topic " + this.topic);
         return this;
     }
+
+    private compressSnapshot = (data: T[], compressIncremental:(data: any) => T): T[] => {
+      let ret: T[] = [];
+      data.forEach(x => ret.push(compressIncremental(x)));
+      return ret;
+    };
+
+    private compressMarketDataInc = (data: any): T => {
+      let ret: any = new Models.Timestamped([[],[]], data.time);
+      let diffPrice: number = 0;
+      let prevPrice: number = 0;
+      data.bids.map(bid => {
+        diffPrice = Math.abs(prevPrice - bid.price);
+        prevPrice = bid.price;
+        ret.data[0].push([Math.round(diffPrice * 100) / 100,Math.round(bid.size * 1000) / 1000])
+      });
+      diffPrice = 0;
+      prevPrice = 0;
+      data.asks.map(ask => {
+        diffPrice = Math.abs(prevPrice - ask.price);
+        prevPrice = ask.price;
+        ret.data[1].push([Math.round(diffPrice * 100) / 100,Math.round(ask.size * 1000) / 1000])
+      });
+      return ret;
+    };
+
+    private compressOSRInc = (data: any): T => {
+      return <any>new Models.Timestamped([
+        data.orderId,
+        data.exchange,
+        data.time,
+        data.price,
+        data.quantity,
+        data.side,
+        data.type,
+        data.timeInForce,
+        data.latency,
+        data.leavesQuantity,
+        data.pair.quote,
+        data.orderStatus
+      ], data.time);
+    };
 }
 
 export class NullPublisher<T> implements IPublish<T> {
@@ -63,22 +132,22 @@ export class NullPublisher<T> implements IPublish<T> {
 }
 
 export interface ISubscribe<T> {
-    registerSubscriber : (incrementalHandler : (msg : T) => void, snapshotHandler : (msgs : T[]) => void) => ISubscribe<T>;
-    registerDisconnectedHandler : (handler : () => void) => ISubscribe<T>;
-    registerConnectHandler : (handler : () => void) => ISubscribe<T>;
+    registerSubscriber: (incrementalHandler: (msg: T) => void, snapshotHandler: (msgs: T[]) => void) => ISubscribe<T>;
+    registerDisconnectedHandler: (handler: () => void) => ISubscribe<T>;
+    registerConnectHandler: (handler: () => void) => ISubscribe<T>;
     connected: boolean;
-    disconnect : () => void;
+    disconnect: () => void;
 }
 
 export class Subscriber<T> implements ISubscribe<T> {
-    private _incrementalHandler : (msg : T) => void = null;
-    private _snapshotHandler : (msgs : T[]) => void = null;
-    private _disconnectHandler : () => void = null;
-    private _connectHandler : () => void = null;
-    private _socket : SocketIOClient.Socket;
+    private _incrementalHandler: (msg: T) => void = null;
+    private _snapshotHandler: (msgs: T[]) => void = null;
+    private _disconnectHandler: () => void = null;
+    private _connectHandler: () => void = null;
+    private _socket: SocketIOClient.Socket;
 
-    constructor(private topic : string,
-                io : SocketIOClient.Socket) {
+    constructor(private topic: string,
+                io: SocketIOClient.Socket) {
         this._socket = io;
 
         // this._log("creating subscriber to", this.topic, "; connected?", this.connected);
@@ -102,7 +171,7 @@ export class Subscriber<T> implements ISubscribe<T> {
             this._connectHandler();
         }
 
-        this._socket.compress(true).emit(Prefixes.SUBSCRIBE + "-" + this.topic);
+        this._socket.emit(Prefixes.SUBSCRIBE + "-" + this.topic);
     };
 
     private onDisconnect = () => {
@@ -172,7 +241,7 @@ export class Subscriber<T> implements ISubscribe<T> {
 }
 
 export interface IFire<T> {
-    fire(msg : T) : void;
+    fire(msg: T): void;
 }
 
 export class Fire<T> implements IFire<T> {
@@ -185,22 +254,22 @@ export class Fire<T> implements IFire<T> {
     }
 
     public fire = (msg : T) : void => {
-        this._socket.compress(true).emit(Prefixes.MESSAGE + "-" + this.topic, msg);
+        this._socket.emit(Prefixes.MESSAGE + "-" + this.topic, msg);
     };
 }
 
 export interface IReceive<T> {
-    registerReceiver(handler : (msg : T) => void) : void;
+    registerReceiver(handler: (msg: T) => void) : void;
 }
 
 export class NullReceiver<T> implements IReceive<T> {
-    registerReceiver = (handler : (msg : T) => void) => {};
+    registerReceiver = (handler: (msg: T) => void) => {};
 }
 
 export class Receiver<T> implements IReceive<T> {
-    private _handler : (msg : T) => void = null;
-    constructor(private topic : string, io : SocketIO.Server) {
-        var onConnection = (s : SocketIO.Socket) => {
+    private _handler: (msg: T) => void = null;
+    constructor(private topic: string, io: SocketIO.Server) {
+        var onConnection = (s: SocketIO.Socket) => {
             // this._log("socket", s.id, "connected for Receiver", topic);
             s.on(Prefixes.MESSAGE + "-" + this.topic, msg => {
                 if (this._handler !== null)
@@ -225,33 +294,4 @@ export class Receiver<T> implements IReceive<T> {
             throw new Error("already registered receive handler for topic " + this.topic);
         }
     };
-}
-
-export class Topics {
-    static FairValue = "fv";
-    static Quote = "q";
-    static ActiveSubscription = "a";
-    static ActiveChange = "ac";
-    static MarketData = "md";
-    static QuotingParametersChange = "qp-sub";
-    static SafetySettings = "ss";
-    static Product = "p";
-    static OrderStatusReports = "osr";
-    static ProductAdvertisement = "pa";
-    static ApplicationState = "as";
-    static Notepad = "np";
-    static ChangeNotepad = "cn";
-    static Position = "pos";
-    static ExchangeConnectivity = "ec";
-    static SubmitNewOrder = "sno";
-    static CancelOrder = "cxl";
-    static MarketTrade = "mt";
-    static Trades = "t";
-    static ExternalValuation = "ev";
-    static QuoteStatus = "qs";
-    static TargetBasePosition = "tbp";
-    static TradeSafetyValue = "tsv";
-    static CancelAllOrders = "cao";
-    static CleanAllClosedOrders = "kko";
-    static CleanAllOrders = "kao";
 }
