@@ -258,19 +258,18 @@ class DisplayOrder {
                                     {{ exch_name }}<br/>{{ pair_name }}
                                 </button>
                                 <wallet-position></wallet-position>
-                                <div><b><a href="#" (click)="toggleConfigs(showConfigs = !showConfigs)">Settings</a></b></div>
                             </div>
                         </div>
 
                         <div class="col-md-9 col-xs-12" style="padding-left:0px;padding-bottom:0px;">
                           <div class="row">
-                            <trade-safety></trade-safety>
+                            <trade-safety (toggleSettings)="toggleConfigs(showConfigs = !showConfigs)"></trade-safety>
                           </div>
                           <div class="row" style="padding-top:0px;">
-                            <div class="col-md-4 col-xs-12" style="padding-left:4px;padding-top:4px;padding-right:0px;">
+                            <div class="col-md-4 col-xs-12" style="padding-left:0px;padding-top:0px;padding-right:0px;">
                                 <market-quoting></market-quoting>
                             </div>
-                            <div class="col-md-8 col-xs-12" style="padding-left:4px;padding-right:0px;padding-top:0px;">
+                            <div class="col-md-8 col-xs-12" style="padding-left:0px;padding-right:0px;padding-top:0px;">
                               <div class="row">
                                 <div class="exchangeActions col-md-2 col-xs-12 text-center img-rounded">
                                   <div>
@@ -361,14 +360,15 @@ class DisplayOrder {
     </div>
     <address class="text-center">
       <small>
-        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a> - <a href="#" (click)="changeTheme()">changeTheme()</a> - <span title="RAM Used" style="margin-top: 6px;display: inline-block;">{{ memory }}</span> - <a title="irc://irc.domirc.net:6667/##tradingBot" href="irc://irc.domirc.net:6667/##tradingBot">IRC</a>
+        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a> - <a href="#" (click)="changeTheme()">changeTheme()</a> - <span title="Server used RAM" style="margin-top: 6px;display: inline-block;">{{ server_memory }}</span> - <span title="Client used RAM" style="margin-top: 6px;display: inline-block;">{{ client_memory }}</span> - <a title="irc://irc.domirc.net:6667/##tradingBot" href="irc://irc.domirc.net:6667/##tradingBot">IRC</a>
       </small>
     </address>
   </div>`
 })
 class ClientComponent implements OnInit, OnDestroy {
 
-  public memory: string;
+  public server_memory: string;
+  public client_memory: string;
   public notepad: string;
   public connected: boolean;
   public showConfigs: boolean = false;
@@ -475,7 +475,8 @@ class ClientComponent implements OnInit, OnDestroy {
   }
 
   private onAppState = (as : Models.ApplicationState) => {
-    this.memory = this.bytesToSize(as.memory, 3);
+    this.server_memory = this.bytesToSize(as.memory, 0);
+    this.client_memory = this.bytesToSize((<any>window.performance).memory.usedJSHeapSize, 0);
     this.system_theme = this.getTheme(as.hour);
     this.setTheme();
   }

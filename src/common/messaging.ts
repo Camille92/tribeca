@@ -3,38 +3,38 @@
 import Models = require("./models");
 
 module Prefixes {
-    export var SUBSCRIBE = "u";
-    export var SNAPSHOT = "n";
-    export var MESSAGE = "m";
+    export var SUBSCRIBE = "_";
+    export var SNAPSHOT = "=";
+    export var MESSAGE = "-";
 }
 
 export class Topics {
-    static FairValue = "fv";
-    static Quote = "q";
-    static ActiveSubscription = "a";
-    static ActiveChange = "ac";
-    static MarketData = "md";
-    static QuotingParametersChange = "qp-sub";
-    static SafetySettings = "ss";
-    static Product = "p";
-    static OrderStatusReports = "osr";
-    static ProductAdvertisement = "pa";
-    static ApplicationState = "as";
-    static Notepad = "np";
-    static ToggleConfigs = "tg";
-    static Position = "pos";
-    static ExchangeConnectivity = "ec";
-    static SubmitNewOrder = "sno";
-    static CancelOrder = "cxl";
-    static MarketTrade = "mt";
-    static Trades = "t";
-    static ExternalValuation = "ev";
-    static QuoteStatus = "qs";
-    static TargetBasePosition = "tbp";
-    static TradeSafetyValue = "tsv";
-    static CancelAllOrders = "cao";
-    static CleanAllClosedOrders = "kko";
-    static CleanAllOrders = "kao";
+    static FairValue = "a";
+    static Quote = "b";
+    static ActiveSubscription = "c";
+    static ActiveChange = "d";
+    static MarketData = "e";
+    static QuotingParametersChange = "f";
+    static SafetySettings = "g";
+    static Product = "h";
+    static OrderStatusReports = "i";
+    static ProductAdvertisement = "j";
+    static ApplicationState = "k";
+    static Notepad = "l";
+    static ToggleConfigs = "m";
+    static Position = "n";
+    static ExchangeConnectivity = "o";
+    static SubmitNewOrder = "p";
+    static CancelOrder = "q";
+    static MarketTrade = "r";
+    static Trades = "s";
+    static ExternalValuation = "t";
+    static QuoteStatus = "u";
+    static TargetBasePosition = "v";
+    static TradeSafetyValue = "w";
+    static CancelAllOrders = "x";
+    static CleanAllClosedOrders = "y";
+    static CleanAllOrders = "z";
 }
 
 export interface IPublish<T> {
@@ -50,14 +50,16 @@ export class Publisher<T> implements IPublish<T> {
         this.registerSnapshot(snapshot || null);
 
         var onConnection = s => {
-            s.on(Prefixes.SUBSCRIBE + "-" + topic, () => {
+            s.on(Prefixes.SUBSCRIBE + topic, () => {
                 if (this._snapshot !== null) {
                   let snap: T[] = this._snapshot();
                   if (this.topic === Topics.MarketData)
                     snap = this.compressSnapshot(this._snapshot(), this.compressMarketDataInc);
                   else if (this.topic === Topics.OrderStatusReports)
                     snap = this.compressSnapshot(this._snapshot(), this.compressOSRInc);
-                  s.emit(Prefixes.SNAPSHOT + "-" + topic, snap);
+                  else if (this.topic === Topics.Position)
+                    snap = this.compressSnapshot(this._snapshot(), this.compressPositionInc);
+                  s.emit(Prefixes.SNAPSHOT + topic, snap);
                 }
             });
         };
@@ -74,7 +76,9 @@ export class Publisher<T> implements IPublish<T> {
         msg = this.compressMarketDataInc(msg);
       else if (this.topic === Topics.OrderStatusReports)
         msg = this.compressOSRInc(msg);
-      this._io.emit(Prefixes.MESSAGE + "-" + this.topic, msg)
+      else if (this.topic === Topics.Position)
+        msg = this.compressPositionInc(msg);
+      this._io.emit(Prefixes.MESSAGE + this.topic, msg)
     };
 
     public registerSnapshot = (generator: () => T[]) => {
@@ -96,23 +100,30 @@ export class Publisher<T> implements IPublish<T> {
       data.bids.map(bid => {
         diffPrice = Math.abs(prevPrice - bid.price);
         prevPrice = bid.price;
-        ret.data[0].push([Math.round(diffPrice * 100) / 100,Math.round(bid.size * 1000) / 1000])
+        ret.data[0].push(Math.round(diffPrice * 1e2) / 1e1, Math.round(bid.size * 1e3) / 1e2)
       });
       diffPrice = 0;
       prevPrice = 0;
       data.asks.map(ask => {
         diffPrice = Math.abs(prevPrice - ask.price);
         prevPrice = ask.price;
-        ret.data[1].push([Math.round(diffPrice * 100) / 100,Math.round(ask.size * 1000) / 1000])
+        ret.data[1].push(Math.round(diffPrice * 1e2) / 1e1, Math.round(ask.size * 1e3) / 1e2)
       });
       return ret;
     };
 
     private compressOSRInc = (data: any): T => {
-      return <any>new Models.Timestamped([
+      return <any>new Models.Timestamped(
+        (data.orderStatus == Models.OrderStatus.Cancelled
+        || data.orderStatus == Models.OrderStatus.Complete
+        || data.orderStatus == Models.OrderStatus.Rejected)
+      ? [
         data.orderId,
+        data.orderStatus
+      ] : [
+        data.orderId,
+        data.orderStatus,
         data.exchange,
-        data.time,
         data.price,
         data.quantity,
         data.side,
@@ -120,8 +131,20 @@ export class Publisher<T> implements IPublish<T> {
         data.timeInForce,
         data.latency,
         data.leavesQuantity,
-        data.pair.quote,
-        data.orderStatus
+        data.pair.quote
+      ], data.time);
+    };
+
+    private compressPositionInc = (data: any): T => {
+      return <any>new Models.Timestamped([
+        Math.round(data.baseAmount * 1e3) / 1e3,
+        Math.round(data.quoteAmount * 1e2) / 1e2,
+        Math.round(data.baseHeldAmount * 1e3) / 1e3,
+        Math.round(data.quoteHeldAmount * 1e2) / 1e2,
+        Math.round(data.value * 1e5) / 1e5,
+        Math.round(data.quoteValue * 1e2) / 1e2,
+        data.pair.base,
+        data.pair.quote
       ], data.time);
     };
 }
@@ -157,8 +180,8 @@ export class Subscriber<T> implements ISubscribe<T> {
 
         this._socket.on("connect", this.onConnect)
                 .on("disconnect", this.onDisconnect)
-                .on(Prefixes.MESSAGE + "-" + topic, this.onIncremental)
-                .on(Prefixes.SNAPSHOT + "-" + topic, this.onSnapshot);
+                .on(Prefixes.MESSAGE + topic, this.onIncremental)
+                .on(Prefixes.SNAPSHOT + topic, this.onSnapshot);
     }
 
     public get connected() : boolean {
@@ -171,7 +194,7 @@ export class Subscriber<T> implements ISubscribe<T> {
             this._connectHandler();
         }
 
-        this._socket.emit(Prefixes.SUBSCRIBE + "-" + this.topic);
+        this._socket.emit(Prefixes.SUBSCRIBE + this.topic);
     };
 
     private onDisconnect = () => {
@@ -195,8 +218,8 @@ export class Subscriber<T> implements ISubscribe<T> {
         // this._log("forcing disconnection from ", this.topic);
         this._socket.off("connect", this.onConnect);
         this._socket.off("disconnect", this.onDisconnect);
-        this._socket.off(Prefixes.MESSAGE + "-" + this.topic, this.onIncremental);
-        this._socket.off(Prefixes.SNAPSHOT + "-" + this.topic, this.onSnapshot);
+        this._socket.off(Prefixes.MESSAGE + this.topic, this.onIncremental);
+        this._socket.off(Prefixes.SNAPSHOT + this.topic, this.onSnapshot);
     };
 
     public registerSubscriber = (incrementalHandler : (msg : T) => void, snapshotHandler : (msgs : T[]) => void) => {
@@ -254,7 +277,7 @@ export class Fire<T> implements IFire<T> {
     }
 
     public fire = (msg : T) : void => {
-        this._socket.emit(Prefixes.MESSAGE + "-" + this.topic, msg);
+        this._socket.emit(Prefixes.MESSAGE + this.topic, msg);
     };
 }
 
@@ -271,7 +294,7 @@ export class Receiver<T> implements IReceive<T> {
     constructor(private topic: string, io: SocketIO.Server) {
         var onConnection = (s: SocketIO.Socket) => {
             // this._log("socket", s.id, "connected for Receiver", topic);
-            s.on(Prefixes.MESSAGE + "-" + this.topic, msg => {
+            s.on(Prefixes.MESSAGE + this.topic, msg => {
                 if (this._handler !== null)
                     this._handler(msg);
             });

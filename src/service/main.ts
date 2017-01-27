@@ -60,11 +60,6 @@ import Statistics = require("./statistics");
 import Backtest = require("./backtest");
 import QuotingEngine = require("./quoting-engine");
 
-import QuotingStyleRegistry = require("./quoting-styles/style-registry");
-import MidMarket = require("./quoting-styles/mid-market");
-import TopJoin = require("./quoting-styles/top-join");
-import PingPong = require("./quoting-styles/ping-pong");
-
 var serverUrl = 'BACKTEST_SERVER_URL' in process.env ? process.env['BACKTEST_SERVER_URL'] : "http://localhost:5001";
 
 var config = new Config.ConfigProvider();
@@ -104,26 +99,23 @@ process.on("SIGINT", () => {
 });
 
 var mainLog = Utils.log("tribeca:main");
-var messagingLog = Utils.log("tribeca:messaging");
 
-function ParseCurrencyPair(raw: string) : Models.CurrencyPair {
-    var split = raw.split("/");
-    if (split.length !== 2)
-        throw new Error("Invalid currency pair! Must be in the format of BASE/QUOTE, eg BTC/USD");
-
-    return new Models.CurrencyPair(Models.Currency[split[0]], Models.Currency[split[1]]);
-}
-var pair = ParseCurrencyPair(config.GetString("TradedPair"));
+var pair = ((raw: string): Models.CurrencyPair => {
+  var split = raw.split("/");
+  if (split.length !== 2)
+      throw new Error("Invalid currency pair! Must be in the format of BASE/QUOTE, eg BTC/USD");
+  return new Models.CurrencyPair(Models.Currency[split[0]], Models.Currency[split[1]]);
+})(config.GetString("TradedPair"));
 
 var defaultActive : Models.SerializedQuotesActive = new Models.SerializedQuotesActive(config.GetString("TRIBECA_MODE").indexOf('auto')>-1, moment.utc());
-var defaultQuotingParameters : Models.QuotingParameters = new Models.QuotingParameters(2, 0.02, 0.01, Models.PingAt.BothSides, Models.PongAt.ShortPingFair, Models.QuotingMode.AK47, Models.FairValueModel.BBO, 1, 0.9, true, Models.AutoPositionMode.EwmaBasic, false, 0.9, 569, false, 5, 0.5, .095, 2*.095, .095, 3, .1);
+var defaultQuotingParameters : Models.QuotingParameters = new Models.QuotingParameters(2, 0.02, 0.01, Models.PingAt.BothSides, Models.PongAt.ShortPingFair, Models.QuotingMode.AK47, Models.FairValueModel.BBO, 1, 0.9, true, Models.AutoPositionMode.EwmaBasic, false, 0.9, 569, false, 2, 0.5, .095, 2*.095, .095, 3, .1);
 
 var backTestSimulationSetup = (inputData : Array<Models.Market | Models.MarketTrade>, parameters : Backtest.BacktestParameters) => {
     var timeProvider : Utils.ITimeProvider = new Backtest.BacktestTimeProvider(_.first(inputData).time, _.last(inputData).time);
     var exchange = Models.Exchange.Null;
     var gw = new Backtest.BacktestGateway(inputData, parameters.startingBasePosition, parameters.startingQuotePosition, <Backtest.BacktestTimeProvider>timeProvider);
 
-    var getExch = (orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway => new Backtest.BacktestExchange(gw);
+    var getExchange = (orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway => new Backtest.BacktestExchange(gw);
 
     var getPublisher = <T>(topic: string, persister?: Persister.ILoadAll<T>): Messaging.IPublish<T> => {
         return new Messaging.NullPublisher<T>();
@@ -143,7 +135,7 @@ var backTestSimulationSetup = (inputData : Array<Models.Market | Models.MarketTr
         startingActive: startingActive,
         startingParameters: startingParameters,
         timeProvider: timeProvider,
-        getExch: getExch,
+        getExchange: getExchange,
         getReceiver: getReceiver,
         getPersister: getPersister,
         getRepository: getRepository,
@@ -190,21 +182,19 @@ var liveTradingSetup = () => {
       }
     });
 
-    var getExchange = (): Models.Exchange => {
-        var ex = config.GetString("EXCHANGE").toLowerCase();
-        switch (ex) {
-            case "hitbtc": return Models.Exchange.HitBtc;
-            case "coinbase": return Models.Exchange.Coinbase;
-            case "okcoin": return Models.Exchange.OkCoin;
-            case "null": return Models.Exchange.Null;
-            case "bitfinex": return Models.Exchange.Bitfinex;
-            default: throw new Error("unknown configuration env variable EXCHANGE " + ex);
-        }
-    };
+    var exchange = ((): Models.Exchange => {
+      let ex: string = config.GetString("EXCHANGE").toLowerCase();
+      switch (ex) {
+        case "hitbtc": return Models.Exchange.HitBtc;
+        case "coinbase": return Models.Exchange.Coinbase;
+        case "okcoin": return Models.Exchange.OkCoin;
+        case "null": return Models.Exchange.Null;
+        case "bitfinex": return Models.Exchange.Bitfinex;
+        default: throw new Error("unknown configuration env variable EXCHANGE " + ex);
+      }
+    })();
 
-    var exchange = getExchange();
-
-    var getExch = (orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway => {
+    var getExchange = (orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway => {
         switch (exchange) {
             case Models.Exchange.HitBtc: return <Interfaces.CombinedGateway>(new HitBtc.HitBtc(config, pair));
             case Models.Exchange.Coinbase: return <Interfaces.CombinedGateway>(new Coinbase.Coinbase(config, orderCache, timeProvider, pair));
@@ -229,10 +219,9 @@ var liveTradingSetup = () => {
     var db = Persister.loadDb(config);
 
     var loaderSaver = new Persister.LoaderSaver(exchange, pair);
-    var mtLoaderSaver = new MarketTrades.MarketTradesLoaderSaver(loaderSaver);
 
     var getPersister = <T>(collectionName: string) : Persister.ILoadAll<T> => {
-        var ls = collectionName === "mt" ? mtLoaderSaver : loaderSaver;
+        var ls = collectionName === "mt" ? new MarketTrades.MarketTradesLoaderSaver(loaderSaver) : loaderSaver;
         var setDBFlag = (collectionName === "trades");
         return new Persister.Persister<T>(db, collectionName, exchange, pair, setDBFlag, ls.loader, ls.saver);
     };
@@ -245,7 +234,7 @@ var liveTradingSetup = () => {
         startingActive: defaultActive,
         startingParameters: defaultQuotingParameters,
         timeProvider: timeProvider,
-        getExch: getExch,
+        getExchange: getExchange,
         getReceiver: getReceiver,
         getPersister: getPersister,
         getRepository: getRepository,
@@ -258,7 +247,7 @@ interface SimulationClasses {
     startingActive : Models.SerializedQuotesActive;
     startingParameters : Models.QuotingParameters;
     timeProvider: Utils.ITimeProvider;
-    getExch(orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway;
+    getExchange(orderCache: Broker.OrderStateCache): Interfaces.CombinedGateway;
     getReceiver<T>(topic: string) : Messaging.IReceive<T>;
     getPersister<T>(collectionName: string) : Persister.ILoadAll<T>;
     getRepository<T>(defValue: T, collectionName: string) : Persister.ILoadLatest<T>;
@@ -336,7 +325,7 @@ var runTradingSystem = (classes: SimulationClasses) : Q.Promise<boolean> => {
           getReceiver(Messaging.Topics.ToggleConfigs)
         );
 
-        var gateway = classes.getExch(orderCache);
+        var gateway = classes.getExchange(orderCache);
 
         if (!_.some(gateway.base.supportedCurrencyPairs, p => p.base === pair.base && p.quote === pair.quote))
             throw new Error("Unsupported currency pair! Please open issue in github or check that gateway " + gateway.base.name() + " really supports the specified currencies defined in TradedPair configuration option.");
@@ -366,25 +355,33 @@ var runTradingSystem = (classes: SimulationClasses) : Q.Promise<boolean> => {
         var longEwma = new Statistics.EwmaStatisticCalculator(initParams.longEwma);
         longEwma.initialize(rfvValues);
 
-        var registry = new QuotingStyleRegistry.QuotingStyleRegistry([
-            new MidMarket.MidMarketQuoteStyle(),
-            new TopJoin.InverseJoinQuoteStyle(),
-            new TopJoin.InverseTopOfTheMarketQuoteStyle(),
-            new TopJoin.JoinQuoteStyle(),
-            new TopJoin.TopOfTheMarketQuoteStyle(),
-            new PingPong.PingPongQuoteStyle(),
-            new PingPong.BoomerangQuoteStyle(),
-            new PingPong.AK47QuoteStyle(),
-        ]);
-
         var positionMgr = new PositionManagement.PositionManager(timeProvider, rfvPersister, fvEngine, initRfv, shortEwma, longEwma);
         var tbp = new PositionManagement.TargetBasePositionManager(timeProvider, positionMgr, paramsRepo, positionBroker, targetBasePositionPublisher, tbpPersister);
-        var quotingEngine = new QuotingEngine.QuotingEngine(registry, timeProvider, filtration, fvEngine, paramsRepo,
+        var quotingEngine = new QuotingEngine.QuotingEngine(timeProvider, filtration, fvEngine, paramsRepo,
             orderBroker, positionBroker, ewma, tbp, safetyCalculator);
-        var quoteSender = new QuoteSender.QuoteSender(timeProvider, paramsRepo, quotingEngine, quoteStatusPublisher, quoter, active, positionBroker, fvEngine, marketDataBroker, broker);
 
-        var marketTradeBroker = new MarketTrades.MarketTradeBroker(gateway.md, marketTradePublisher, marketDataBroker,
-            quotingEngine, broker, mktTradePersister, initMktTrades);
+        new QuoteSender.QuoteSender(
+          timeProvider,
+          paramsRepo,
+          quotingEngine,
+          quoteStatusPublisher,
+          quoter,
+          active,
+          positionBroker,
+          fvEngine,
+          marketDataBroker,
+          broker
+        );
+
+        new MarketTrades.MarketTradeBroker(
+          gateway.md,
+          marketTradePublisher,
+          marketDataBroker,
+          quotingEngine,
+          broker,
+          mktTradePersister,
+          initMktTrades
+        );
 
         if (config.inBacktestMode) {
             var t = Utils.date();
