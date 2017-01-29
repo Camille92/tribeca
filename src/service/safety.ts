@@ -1,10 +1,3 @@
-/// <reference path="../common/models.ts" />
-/// <reference path="config.ts" />
-/// <reference path="utils.ts" />
-/// <reference path="broker.ts" />
-/// <reference path="../common/messaging.ts" />
-///<reference path="persister.ts"/>
-
 import util = require("util");
 import Config = require("./config");
 import Models = require("../common/models");
@@ -42,13 +35,11 @@ export class SafetyCalculator {
     constructor(
         private _timeProvider: Utils.ITimeProvider,
         private _fvEngine: FairValue.FairValueEngine,
-        private _repo: Interfaces.IRepository<Models.QuotingParameters>,
-        private _broker: Broker.OrderBroker,
         private _qlParams: Interfaces.IRepository<Models.QuotingParameters>,
+        private _broker: Broker.OrderBroker,
         private _publisher: Messaging.IPublish<Models.TradeSafety>,
         private _persister: Persister.IPersist<Models.TradeSafety>) {
         _publisher.registerSnapshot(() => [this.latest]);
-        _repo.NewParameters.on(_ => this.computeQtyLimit());
         _qlParams.NewParameters.on(_ => this.computeQtyLimit());
         _qlParams.NewParameters.on(_ => this.cancelOpenOrders());
         _broker.Trade.on(this.onTrade);
@@ -57,13 +48,13 @@ export class SafetyCalculator {
     }
 
     private cancelOpenOrders = () => {
-      if (this._repo.latest.mode === Models.QuotingMode.AK47)
+      if (this._qlParams.latest.mode === Models.QuotingMode.AK47)
         this._broker.cancelOpenOrders();
     };
 
     private onTrade = (ut: Models.Trade) => {
         var u = _.cloneDeep(ut);
-        if (this.isOlderThan(u, this._repo.latest)) return;
+        if (this.isOlderThan(u, this._qlParams.latest)) return;
 
         if (u.side === Models.Side.Ask) {
             this._sells.push(u);
@@ -81,7 +72,7 @@ export class SafetyCalculator {
     }
 
     private computeQtyLimit = () => {
-        var settings = this._repo.latest;
+        var settings = this._qlParams.latest;
 
         var buyPing = 0;
         var sellPong = 0;
@@ -169,12 +160,17 @@ export class SafetyCalculator {
             }
         }
 
-        var computeSafety = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / (this._qlParams.latest.buySize + this._qlParams.latest.sellSize / 2);
-        var computeSafetyBuy = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / this._qlParams.latest.buySize;
-        var computeSafetySell = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / this._qlParams.latest.sellSize;
+        var computeSafety = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / (settings.buySize + settings.sellSize / 2);
+        var computeSafetyBuy = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / settings.buySize;
+        var computeSafetySell = (t: Models.Trade[]) => t.reduce((sum, t) => sum + t.quantity, 0) / settings.sellSize;
 
-        this.latest = new Models.TradeSafety(computeSafetyBuy(this._buys), computeSafetySell(this._sells),
-            computeSafety(this._buys.concat(this._sells)), buyPing, sellPong, this._timeProvider.utcNow());
-
+        this.latest = new Models.TradeSafety(
+          computeSafetyBuy(this._buys),
+          computeSafetySell(this._sells),
+          computeSafety(this._buys.concat(this._sells)),
+          buyPing,
+          sellPong,
+          this._timeProvider.utcNow()
+        );
     };
 }

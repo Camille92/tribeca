@@ -103,7 +103,7 @@ Later you can scroll the color-formatted output in the log file with `npm run lo
 
 ### Unreleased Changelog:
 
-Added nodejs6, typescript2 and angular2.
+Added nodejs6, typescript2, angular2 and reactivexjs.
 
 Added cleanup of bandwidth, source code, dependencies and installation steps.
 
@@ -127,7 +127,7 @@ see the upstream project [michaelgrosner/tribeca](https://github.com/michaelgros
 
 ### Donations
 
-nope. but you can donate to your favorite developer today! (or tomorrow!)
+nope, this project doesn't have maintenance costs. but you can donate to your favorite developer today! (or tomorrow!)
 
 or see the upstream project [michaelgrosner/tribeca](https://github.com/michaelgrosner/tribeca).
 

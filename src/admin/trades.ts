@@ -1,7 +1,3 @@
-/// <reference path='../common/models.ts' />
-/// <reference path='../common/messaging.ts' />
-/// <reference path='shared_directives.ts'/>
-
 import {NgZone, Component, Inject, OnInit, OnDestroy} from '@angular/core';
 import {GridOptions, ColDef, RowNode} from "ag-grid/main";
 import moment = require('moment');
@@ -12,7 +8,7 @@ import {SubscriberFactory, BaseCurrencyCellComponent, QuoteCurrencyCellComponent
 
 @Component({
   selector: 'trade-list',
-  template: `<ag-grid-ng2 #tradeList class="ag-fresh ag-dark" style="height: 220px;width: 99.99%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
+  template: `<ag-grid-ng2 #tradeList class="ag-fresh ag-dark" style="height: 215px;width: 99.99%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
 })
 export class TradesComponent implements OnInit, OnDestroy {
 
@@ -38,12 +34,12 @@ export class TradesComponent implements OnInit, OnDestroy {
 
     this.subscriberQPChange = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.QuotingParametersChange)
-      .registerSubscriber(this.updateQP, qp => qp.forEach(this.updateQP));
+      .registerSubscriber(this.updateQP);
 
     this.subscriberTrades = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.Trades)
       .registerDisconnectedHandler(() => this.gridOptions.rowData.length = 0)
-      .registerSubscriber(this.addRowData, trades => trades.forEach(this.addRowData));
+      .registerSubscriber(this.addRowData);
   }
 
   ngOnDestroy() {

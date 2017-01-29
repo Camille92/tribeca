@@ -1,7 +1,3 @@
-/// <reference path='../common/models.ts' />
-/// <reference path='../common/messaging.ts' />
-/// <reference path='shared_directives.ts'/>
-
 import {NgZone, Component, Inject, OnInit, OnDestroy} from '@angular/core';
 import {GridOptions, ColDef, RowNode} from "ag-grid/main";
 import moment = require('moment');
@@ -12,7 +8,7 @@ import {SubscriberFactory, BaseCurrencyCellComponent, QuoteCurrencyCellComponent
 
 @Component({
   selector: 'market-trades',
-  template: `<ag-grid-ng2 #marketList class="ag-fresh ag-dark marketTrades" style="height: 406px;width: 100%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
+  template: `<ag-grid-ng2 #marketList class="ag-fresh ag-dark marketTrades" style="height: 396px;width: 100%;" rowHeight="21" [gridOptions]="gridOptions"></ag-grid-ng2>`
 })
 export class MarketTradesComponent implements OnInit, OnDestroy {
 
@@ -34,7 +30,7 @@ export class MarketTradesComponent implements OnInit, OnDestroy {
     this.subscriberMarketTrade = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.MarketTrade)
       .registerDisconnectedHandler(() => this.gridOptions.rowData.length = 0)
-      .registerSubscriber(this.addRowData, x => x.forEach(this.addRowData));
+      .registerSubscriber(this.addRowData);
   }
 
   ngOnDestroy() {

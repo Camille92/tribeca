@@ -1,7 +1,3 @@
-/// <reference path='../common/models.ts' />
-/// <reference path='../common/messaging.ts' />
-/// <reference path='shared_directives.ts'/>
-
 import {NgZone} from '@angular/core';
 
 import _ = require('lodash');
@@ -27,7 +23,7 @@ class FormViewModel<T> {
 
     _sub.registerConnectHandler(() => this.connected = true)
       .registerDisconnectedHandler(() => this.connected = false)
-      .registerSubscriber(this.update, us => us.forEach(this.update));
+      .registerSubscriber(this.update);
 
     this.connected = _sub.connected;
     this.master = _.cloneDeep(defaultParameter);
@@ -116,8 +112,9 @@ export class DisplayPair {
       this.connected = cs == Models.ConnectivityStatus.Connected;
     };
 
-    var connectivitySubscriber = subscriberFactory.getSubscriber(zone, Messaging.Topics.ExchangeConnectivity)
-      .registerSubscriber(setConnectStatus, cs => cs.forEach(setConnectStatus));
+    var connectivitySubscriber = subscriberFactory
+      .getSubscriber(zone, Messaging.Topics.ExchangeConnectivity)
+      .registerSubscriber(setConnectStatus);
     this._subscribers.push(connectivitySubscriber);
 
     var activeSub = subscriberFactory.getSubscriber(zone, Messaging.Topics.ActiveChange);

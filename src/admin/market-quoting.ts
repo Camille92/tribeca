@@ -1,7 +1,3 @@
-/// <reference path='../common/models.ts' />
-/// <reference path='../common/messaging.ts' />
-/// <reference path='shared_directives.ts'/>
-
 import {NgZone, Component, Inject, OnInit, OnDestroy} from '@angular/core';
 
 import Models = require('../common/models');
@@ -66,7 +62,7 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
     var makeSubscriber = <T>(topic: string, updateFn, clearFn) => {
       this.subscribers.push(
         this.subscriberFactory.getSubscriber<T>(this.zone, topic)
-          .registerSubscriber(updateFn, ms => ms.forEach(updateFn))
+          .registerSubscriber(updateFn)
           .registerDisconnectedHandler(clearFn)
       );
     };
@@ -148,7 +144,8 @@ export class MarketQuotingComponent implements OnInit, OnDestroy {
   }
 
   private updateQuote = (o: Models.Timestamped<any[]>) => {
-    if (o.data[1] == Models.OrderStatus.Cancelled
+    if (o.data[1] == Models.OrderStatus.New
+      || o.data[1] == Models.OrderStatus.Cancelled
       || o.data[1] == Models.OrderStatus.Complete
       || o.data[1] == Models.OrderStatus.Rejected
     ) this.order_classes = this.order_classes.filter(x => x.orderId !== o.data[0]);

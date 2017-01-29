@@ -1,14 +1,3 @@
-/// <reference path="../common/models.ts" />
-/// <reference path="../common/messaging.ts"/>
-/// <reference path="shared_directives.ts"/>
-/// <reference path="wallet-position.ts"/>
-/// <reference path="market-quoting.ts"/>
-/// <reference path="market-trades.ts"/>
-/// <reference path="trade-safety.ts"/>
-/// <reference path="orders.ts"/>
-/// <reference path="trades.ts"/>
-/// <reference path="pair.ts"/>
-
 import 'zone.js';
 import 'reflect-metadata';
 
@@ -263,7 +252,7 @@ class DisplayOrder {
 
                         <div class="col-md-9 col-xs-12" style="padding-left:0px;padding-bottom:0px;">
                           <div class="row">
-                            <trade-safety (toggleSettings)="toggleConfigs(showConfigs = !showConfigs)"></trade-safety>
+                            <trade-safety [showConfigs]="showConfigs" (toggleConfigs)="toggleConfigs(showConfigs = !showConfigs)"></trade-safety>
                           </div>
                           <div class="row" style="padding-top:0px;">
                             <div class="col-md-4 col-xs-12" style="padding-left:0px;padding-top:0px;padding-right:0px;">
@@ -360,7 +349,7 @@ class DisplayOrder {
     </div>
     <address class="text-center">
       <small>
-        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a> - <a href="#" (click)="changeTheme()">changeTheme()</a> - <span title="Server used RAM" style="margin-top: 6px;display: inline-block;">{{ server_memory }}</span> - <span title="Client used RAM" style="margin-top: 6px;display: inline-block;">{{ client_memory }}</span> - <a title="irc://irc.domirc.net:6667/##tradingBot" href="irc://irc.domirc.net:6667/##tradingBot">IRC</a>
+        <a href="/view/README.md" target="_blank">README</a> - <a href="/view/MANUAL.md" target="_blank">MANUAL</a> - <a href="https://github.com/ctubio/tribeca" target="_blank">SOURCE</a> - <a href="#" (click)="changeTheme()">changeTheme(<span [hidden]="!system_theme">LIGHT</span><span [hidden]="system_theme">DARK</span>)</a> - <span title="Server used RAM" style="margin-top: 6px;display: inline-block;">{{ server_memory }}</span> - <span title="Client used RAM" style="margin-top: 6px;display: inline-block;">{{ client_memory }}</span> - <a href="https://github.com/ctubio/tribeca/issues/new" target="_blank">CREATE ISSUE</a> - <a title="irc://irc.domirc.net:6667/##tradingBot" href="irc://irc.domirc.net:6667/##tradingBot">IRC</a>
       </small>
     </address>
   </div>`
@@ -425,20 +414,20 @@ class ClientComponent implements OnInit, OnDestroy {
 
     this.subscriberProductAdvertisement = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.ProductAdvertisement)
-      .registerSubscriber(this.onAdvert, a => a.forEach(this.onAdvert))
+      .registerSubscriber(this.onAdvert)
       .registerDisconnectedHandler(() => this.reset());
 
     this.subscriberApplicationState = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.ApplicationState)
-      .registerSubscriber(this.onAppState, a => a.forEach(this.onAppState));
+      .registerSubscriber(this.onAppState);
 
     this.subscriberNotepad = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.Notepad)
-      .registerSubscriber(this.onNotepad, a => a.forEach(this.onNotepad));
+      .registerSubscriber(this.onNotepad);
 
     this.subscriberToggleConfigs = this.subscriberFactory
       .getSubscriber(this.zone, Messaging.Topics.ToggleConfigs)
-      .registerSubscriber(this.onToggleConfigs, a => a.forEach(this.onToggleConfigs));
+      .registerSubscriber(this.onToggleConfigs);
   }
 
   ngOnDestroy() {

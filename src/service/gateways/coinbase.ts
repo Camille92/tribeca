@@ -1,8 +1,3 @@
-/// <reference path="../utils.ts" />
-/// <reference path="../../common/models.ts" />
-/// <reference path="nullgw.ts" />
-///<reference path="../interfaces.ts"/>
-
 import Config = require("../config");
 import request = require('request');
 import url = require("url");
@@ -672,7 +667,7 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
             orderId: orderId,
             orderStatus: ordStatus,
             time: tsMsg.time,
-            leavesQuantity: 0,
+            leavesQuantity: 0
         };
 
         this.OrderUpdate.trigger(status);

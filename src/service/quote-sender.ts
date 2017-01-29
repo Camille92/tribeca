@@ -1,16 +1,3 @@
-/// <reference path="../common/models.ts" />
-/// <reference path="../common/messaging.ts" />
-/// <reference path="config.ts" />
-/// <reference path="utils.ts" />
-/// <reference path="utils.ts"/>
-/// <reference path="quoter.ts"/>
-/// <reference path="statistics.ts"/>
-/// <reference path="active-state.ts"/>
-/// <reference path="fair-value.ts"/>
-/// <reference path="market-filtration.ts"/>
-/// <reference path="quoting-parameters.ts"/>
-/// <reference path="quoting-engine.ts"/>
-
 import Config = require("./config");
 import Models = require("../common/models");
 import Messaging = require("../common/messaging");
@@ -47,11 +34,11 @@ export class QuoteSender {
             private _quotingEngine: QuotingEngine.QuotingEngine,
             private _statusPublisher: Messaging.IPublish<Models.TwoSidedQuoteStatus>,
             private _quoter: Quoter.Quoter,
-            private _activeRepo: Active.ActiveRepository,
             private _positionBroker: Interfaces.IPositionBroker,
             private _fv: FairValue.FairValueEngine,
             private _broker: Interfaces.IMarketDataBroker,
-            private _details: Interfaces.IBroker) {
+            private _details: Interfaces.IBroker,
+            private _activeRepo: Active.ActiveRepository) {
         _activeRepo.NewParameters.on(() => this.sendQuote(_timeProvider.utcNow()));
         _quotingEngine.QuoteChanged.on(() => this.sendQuote(Utils.timeOrDefault(_quotingEngine.latestQuote, _timeProvider)));
         _statusPublisher.registerSnapshot(() => this.latestStatus === null ? [] : [this.latestStatus]);
