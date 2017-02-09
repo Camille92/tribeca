@@ -106,11 +106,6 @@ class OkCoinWebsocket {
                 ))) this._log.warn("Unsuccessful message %s received.", raw);
                 else if (msg.success === "true")
                   return this._log.info("Successfully connected to %s", msg.channel);
-                if (typeof msg.errorcode !== "undefined" && (
-                  msg.errorcode == '10001'
-                  || msg.errorcode == '10050'
-                  || msg.errorcode == '10009'
-                ))  return;
             }
 
             var handler = this._handlers[msg.channel];
