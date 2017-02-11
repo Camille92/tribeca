@@ -106,6 +106,7 @@ class OkCoinWebsocket {
                   return this._log.info("Successfully connected to %s", msg.channel);
                 if (typeof msg.errorcode !== "undefined" && (
                   msg.errorcode == '10005'
+                  || msg.errorcode == '10009'                  
                 ))  return;
             }
 
