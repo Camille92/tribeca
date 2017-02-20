@@ -19,6 +19,7 @@ interface OkCoinMessageIncomingMessage {
     success : string;
     data : any;
     event? : string;
+    errorcode : string;
     order_id : string;
 }
 
@@ -233,6 +234,7 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
         if (typeof ts.data !== "undefined" && ts.data.result === "true") {
             osr.exchangeId = ts.data.order_id.toString();
             osr.orderStatus = Models.OrderStatus.Working;
+            osr.leavesQuantity = order[1];
         }
         else {
             osr.orderStatus = Models.OrderStatus.Rejected;
@@ -254,11 +256,13 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
         if (ts.data.result === "true") {
             osr.orderStatus = Models.OrderStatus.Cancelled;
             osr.done = true;
+            osr.leavesQuantity = 0;
 
         }
         else {
             osr.orderStatus = Models.OrderStatus.Rejected;
             osr.cancelRejected = true;
+            osr.leavesQuantity = 0;
         }
 
         this.OrderUpdate.trigger(osr);
