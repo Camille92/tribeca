@@ -70,7 +70,7 @@ interface OkCoinTradeRecord {
 interface SubscriptionRequest extends SignedMessage { }
 
 class OkCoinWebsocket {
-    send = <T>(channel : string, parameters: any) => {
+  send = <T>(channel : string, parameters: any) => {
         var subsReq : any = {event: 'addChannel', channel: channel};
 
         if (parameters !== null)
@@ -253,6 +253,7 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
 
         if (ts.data.result === "true") {
             osr.orderStatus = Models.OrderStatus.Cancelled;
+            osr.done = true;
 
         }
         else {
