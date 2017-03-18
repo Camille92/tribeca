@@ -119,10 +119,6 @@ class OkCoinWebsocket {
             }
 
             handler(new Models.Timestamped(msg.data, t));
-          
-          
-        var e = new Error('example');
-        throw e;
         }
         catch (e) {
             this._log.error(e, "Error parsing msg", raw);
