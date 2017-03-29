@@ -72,7 +72,7 @@ interface SubscriptionRequest extends SignedMessage { }
 
 class OkCoinWebsocket {
 	send = <T>(channel : string, parameters: any) => {
-        var subsReq : any = {event: 'addChannel', channel: channel};
+        var subsReq : any = {event: 'addChannel', channel: 'ok_spotusd_trade'};
 
         if (parameters !== null)
             subsReq.parameters = parameters;
@@ -101,7 +101,6 @@ class OkCoinWebsocket {
                   && msg.errorcode != '10010' /* 10010=Insufficient funds */
                   && msg.errorcode != '10016' /* 10016=Insufficient coins balance */
                   && msg.errorcode != '10005'
-                  && msg.errorcode != '20103'
                 ))) this._log.warn("Unsuccessful message %s received.", raw);
                 else if (msg.success === "true")
                   return this._log.info("Successfully connected to %s", msg.channel);
@@ -109,7 +108,6 @@ class OkCoinWebsocket {
                   msg.errorcode == '10050'
                   || msg.errorcode == '10009'
                   || msg.errorcode == '10005'
-                  || msg.errorcode == '20103'
                 ))  return;
             }
 
