@@ -171,8 +171,8 @@ class OkCoinMarketDataGateway implements Interfaces.IMarketDataGateway {
 
     private _log = Utils.log("tribeca:gateway:OkCoinMD");
     constructor(socket : OkCoinWebsocket, symbolProvider: OkCoinSymbolProvider) {
-        var depthChannel = "ok_" + symbolProvider.symbolWithoutUnderscore + "_depth";
-        var tradesChannel = "ok_" + symbolProvider.symbolWithoutUnderscore + "_trades_v1";
+        var depthChannel = "ok_stopusd_depth";
+        var tradesChannel = "ok_stopusd_trades_v1";
 
         socket.setHandler(depthChannel, this.onDepth);
         socket.setHandler(tradesChannel, this.onTrade);
