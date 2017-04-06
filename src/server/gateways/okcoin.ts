@@ -95,11 +95,20 @@ class OkCoinWebsocket {
             }
 
             if (typeof msg.success !== "undefined") {
-                if (msg.success !== "true")
-                    this._log.warn("Unsuccessful message", msg);
-                else
-                    this._log.info("Successfully connected to %s", msg.channel);
-                return;
+                if (msg.success !== "true" && (typeof msg.errorcode === "undefined" || (
+                  msg.errorcode != '10050' /* 10050=Can't cancel more than once */
+                  && msg.errorcode != '10009' /* 10009=Order does not exist */
+                  && msg.errorcode != '10010' /* 10010=Insufficient funds */
+                  && msg.errorcode != '10016' /* 10016=Insufficient coins balance */
+                  // msg.errorcode != '10001' /* 10001=Request frequency too high */
+                ))) this._log.warn("Unsuccessful message %s received.", raw);
+                else if (msg.success === "true")
+                  return this._log.info("Successfully connected to %s", msg.channel);
+                if (typeof msg.errorcode !== "undefined" && (
+                  msg.errorcode == '10050'
+                  || msg.errorcode == '10009'
+                  // || msg.errorcode == '10001'
+                ))  return;
             }
 
             var handler = this._handlers[msg.channel];
@@ -210,8 +219,8 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
         var o : Order = {
             symbol: this._symbolProvider.symbol,
             type: OkCoinOrderEntryGateway.GetOrderType(order.side, order.type),
-            price: order.price.toString(),
-            amount: order.quantity.toString()};
+            price: order.price,
+            amount: order.quantity};
 
         this._ordersWaitingForAckQueue.push([order.orderId, order.quantity]);
 
@@ -231,7 +240,7 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
         var osr : Models.OrderStatusReport = { orderId: orderId, time: ts.time };
 
         if (typeof ts.data !== "undefined" && ts.data.result === "true") {
-            osr.exchangeId = ts.data.order_id.toString();
+            osr.exchangeId = ts.data.order_id;
             osr.orderStatus = Models.OrderStatus.Working;
             osr.leavesQuantity = order[1];
         }
@@ -250,7 +259,7 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
     };
 
     private onCancel = (ts: Models.Timestamped<OrderAck>) => {
-        var osr : Models.OrderStatusReport = { exchangeId: ts.data.order_id.toString(), time: ts.time };
+        var osr : Models.OrderStatusReport = { exchangeId: ts.data.order_id, time: ts.time };
 
         if (ts.data.result === "true") {
             osr.orderStatus = Models.OrderStatus.Cancelled;
@@ -292,7 +301,7 @@ class OkCoinOrderEntryGateway implements Interfaces.IOrderEntryGateway {
         var lastPx = parseFloat(msg.sigTradePrice);
 
         var status : Models.OrderStatusReport = {
-            exchangeId: msg.orderId.toString(),
+            exchangeId: msg.orderId,
             orderStatus: OkCoinOrderEntryGateway.getStatus(msg.status),
             time: t,
             lastQuantity: lastQty > 0 ? lastQty : undefined,
@@ -348,7 +357,7 @@ class OkCoinMessageSigner {
         }
 
         var sig = els.join("&") + "&secret_key=" + this._secretKey;
-        m.sign = crypto.createHash('md5').update(sig).digest("hex").toString().toUpperCase();
+        m.sign = crypto.createHash('md5').update(sig).digest("hex").toUpperCase();
         return m;
     };
 
