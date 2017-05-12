@@ -373,6 +373,7 @@ export interface QuotingParameters {
     cancelOrdersAuto?: boolean;
     stepOverSize?: number;
     delayUI?: number;
+    done : boolean;
 }
 
 export class ExchangePairMessage<T> {
