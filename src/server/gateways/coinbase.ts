@@ -4,9 +4,9 @@ import Models = require("../../share/models");
 import Utils = require("../utils");
 import Interfaces = require("../interfaces");
 import moment = require("moment");
-import Q = require("q");
 import _ = require('lodash');
 import log from "../logging";
+import * as Promises from '../promises';
 
 var uuid = require('uuid');
 import CoinbaseExchange = require("./coinbase-api");
@@ -158,26 +158,6 @@ interface CoinbaseAuthenticatedClient {
     getProductTrades(product: string, cb: (err?: Error, response?: any, ack?: CoinbaseRESTTrade[]) => void);
     getAccounts(cb: (err?: Error, response?: any, info?: CoinbaseAccountInformation[]) => void);
     getAccount(accountID: string, cb: (err?: Error, response?: any, info?: CoinbaseAccountInformation) => void);
-}
-
-function convertConnectivityStatus(s: StateChange) {
-    return s.new === "processing" ? Models.ConnectivityStatus.Connected : Models.ConnectivityStatus.Disconnected;
-}
-
-function convertSide(msg: CoinbaseBase): Models.Side {
-    return msg.side === "buy" ? Models.Side.Bid : Models.Side.Ask;
-}
-
-function convertPrice(pxStr: string) {
-    return parseFloat(pxStr);
-}
-
-function convertSize(szStr: string) {
-    return parseFloat(szStr);
-}
-
-function convertTime(time: string) : Date {
-    return new Date(time);
 }
 
 class PriceLevel {
@@ -465,8 +445,8 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
     OrderUpdate = new Utils.Evt<Models.OrderStatusUpdate>();
 
     supportsCancelAllOpenOrders = () : boolean => { return false; };
-    cancelAllOpenOrders = () : Q.Promise<number> => {
-        var d = Q.defer<number>();
+    cancelAllOpenOrders = () : Promise<number> => {
+        var d = Promises.defer<number>();
         this._authClient.cancelAllOrders((err, resp) => {
             if (err) d.reject(err);
             else  {
@@ -546,6 +526,26 @@ class CoinbaseOrderEntryGateway implements Interfaces.IOrderEntryGateway {
             if (ack == null || typeof ack.id === "undefined") {
               if (ack==null || (ack.message && ack.message!='Insufficient funds'))
                 this._log.warn("WARNING FROM GATEWAY:", order.orderId, err, ack);
+            }
+            var msg = null;
+            if (err) {
+                if (err.message) msg = err.message;
+            }
+            else if (ack != null) {
+                if (ack.message) msg = ack.message;
+                if (ack.error) msg = ack.error;
+            }
+            else if (ack == null) {
+                msg = "No ack provided!!";
+            }
+
+            if (msg !== null) {
+              this.OrderUpdate.trigger({
+                  orderId: order.orderId,
+                  rejectMessage: msg,
+                  orderStatus: Models.OrderStatus.Rejected,
+                  time: this._timeProvider.utcNow()
+              });
             }
         };
 
@@ -800,7 +800,7 @@ export async function createCoinbase(config: Config.IConfigProvider, orders: Int
     const authClient : CoinbaseAuthenticatedClient = new CoinbaseExchange.AuthenticatedClient(config.GetString("CoinbaseApiKey"),
             config.GetString("CoinbaseSecret"), config.GetString("CoinbasePassphrase"), config.GetString("CoinbaseRestUrl"));
 
-    const d = Q.defer<Product[]>();
+    const d = Promises.defer<Product[]>();
     authClient.getProducts((err, _, p) => {
         if (err) d.reject(err);
         else d.resolve(p);
